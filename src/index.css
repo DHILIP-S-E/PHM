@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Custom CSS Variables */
+:root {
+  --primary: #1754cf;
+  --background-light: #f6f6f8;
+  --background-dark: #111621;
+  --surface-light: #ffffff;
+  --surface-dark: #1e293b;
+  --text-main: #0e121b;
+  --text-secondary: #4e6797;
+}
+
+/* Custom Theme Configuration */
+@theme {
+  --color-primary: #1754cf;
+  --color-background-light: #f6f6f8;
+  --color-background-dark: #111621;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #1e293b;
+  --color-text-main: #0e121b;
+  --color-text-secondary: #4e6797;
+  --font-display: "Inter", sans-serif;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.filled,
+.icon-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+/* Toggle Switch */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: var(--primary);
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: var(--primary);
+}
+
+/* Base styles */
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}

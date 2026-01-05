@@ -1,0 +1,50 @@
+import { useState } from 'react';
+
+export default function Header() {
+    const [searchQuery, setSearchQuery] = useState('');
+
+    return (
+        <header className="flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-surface-light dark:bg-surface-dark px-6">
+            {/* Search */}
+            <div className="flex items-center gap-4 flex-1">
+                <div className="relative w-full max-w-md">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <span className="material-symbols-outlined text-[20px]">search</span>
+                    </div>
+                    <input
+                        type="text"
+                        className="block w-full rounded-lg border-none bg-slate-100 dark:bg-slate-800 py-2 pl-10 pr-3 text-sm placeholder-slate-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-primary dark:text-white transition-all"
+                        placeholder="Search warehouses, shops, medicines..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-4">
+                {/* Notifications */}
+                <button className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+                    <span className="material-symbols-outlined">notifications</span>
+                    <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-800"></span>
+                </button>
+
+                {/* Help */}
+                <button className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+                    <span className="material-symbols-outlined">help</span>
+                </button>
+
+                {/* User Profile */}
+                <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
+                    <div className="text-right hidden sm:block">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">Alex Morgan</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Super Admin</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                        AM
+                    </div>
+                </div>
+            </div>
+        </header>
+    );
+}
