@@ -3,6 +3,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import WarehouseList from './pages/WarehouseList';
+import WarehouseStockEntry from './pages/WarehouseStockEntry';
 import ShopList from './pages/ShopList';
 import MedicineList from './pages/MedicineList';
 import MedicineDetails from './pages/MedicineDetails';
@@ -10,7 +11,19 @@ import EditMedicalShop from './pages/EditMedicalShop';
 import ApplicationSettings from './pages/ApplicationSettings';
 import SystemSettings from './pages/SystemSettings';
 import ExpiryLossReport from './pages/ExpiryLossReport';
+import SalesReports from './pages/SalesReports';
+import TaxReports from './pages/TaxReports';
 import ReturnRefund from './pages/ReturnRefund';
+import UsersList from './pages/UsersList';
+import CustomersList from './pages/CustomersList';
+import EmployeesList from './pages/EmployeesList';
+import AttendanceManagement from './pages/AttendanceManagement';
+import SalaryManagement from './pages/SalaryManagement';
+import InvoicesList from './pages/InvoicesList';
+import DispatchesList from './pages/DispatchesList';
+import PurchaseRequestsList from './pages/PurchaseRequestsList';
+import POSBilling from './pages/POSBilling';
+import NotificationsPage from './pages/NotificationsPage';
 
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -33,33 +46,53 @@ function App() {
         }>
           <Route index element={<Dashboard />} />
 
+          {/* Users */}
+          <Route path="users" element={<UsersList />} />
+
           {/* Warehouses */}
           <Route path="warehouses" element={<WarehouseList />} />
-          <Route path="warehouses/:id" element={<WarehouseList />} />
-          <Route path="warehouses/:id/edit" element={<WarehouseList />} />
+          <Route path="warehouses/stock" element={<WarehouseStockEntry />} />
 
           {/* Shops */}
           <Route path="shops" element={<ShopList />} />
-          <Route path="shops/:id" element={<ShopList />} />
           <Route path="shops/:id/edit" element={<EditMedicalShop />} />
 
           {/* Medicines */}
           <Route path="medicines" element={<MedicineList />} />
           <Route path="medicines/:id" element={<MedicineDetails />} />
-          <Route path="medicines/:id/batches" element={<MedicineDetails />} />
+
 
           {/* Inventory */}
           <Route path="inventory" element={<MedicineList />} />
 
+          {/* Customers */}
+          <Route path="customers" element={<CustomersList />} />
+
+          {/* Employees & HR */}
+          <Route path="employees" element={<EmployeesList />} />
+          <Route path="employees/attendance" element={<AttendanceManagement />} />
+          <Route path="employees/salary" element={<SalaryManagement />} />
+
+          {/* Dispatches */}
+          <Route path="dispatches" element={<DispatchesList />} />
+
+          {/* Purchase Requests */}
+          <Route path="purchase-requests" element={<PurchaseRequestsList />} />
+
           {/* Sales & Billing */}
-          <Route path="sales" element={<Dashboard />} />
-          <Route path="sales/pos" element={<Dashboard />} />
-          <Route path="sales/invoices" element={<Dashboard />} />
+          <Route path="sales" element={<InvoicesList />} />
+          <Route path="sales/pos" element={<POSBilling />} />
+          <Route path="sales/invoices" element={<InvoicesList />} />
           <Route path="sales/returns" element={<ReturnRefund />} />
 
           {/* Reports */}
-          <Route path="reports" element={<Dashboard />} />
+          <Route path="reports" element={<SalesReports />} />
+          <Route path="reports/sales" element={<SalesReports />} />
           <Route path="reports/expiry" element={<ExpiryLossReport />} />
+          <Route path="reports/tax" element={<TaxReports />} />
+
+          {/* Notifications */}
+          <Route path="notifications" element={<NotificationsPage />} />
 
           {/* Settings */}
           <Route path="settings" element={<ApplicationSettings />} />
@@ -75,3 +108,5 @@ function App() {
 }
 
 export default App;
+
+

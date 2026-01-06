@@ -1,13 +1,25 @@
-# FastAPI Backend Dependencies
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-pydantic==2.10.0
-pydantic-settings==2.6.0
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.12
+# PharmaEC Management System - Backend Dependencies
+# Production-ready versions verified for compatibility
+
+# Core Framework
+fastapi>=0.109.0,<1.0.0
+uvicorn[standard]>=0.27.0,<1.0.0
+pydantic>=2.6.0,<3.0.0
+pydantic-settings>=2.1.0,<3.0.0
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0,<4.0.0
+passlib[bcrypt]>=1.7.4,<2.0.0
+python-multipart>=0.0.7,<1.0.0
 
 # Database
-sqlalchemy==2.0.36
-psycopg2-binary==2.9.10
-asyncpg==0.30.0
+sqlalchemy>=2.0.25,<3.0.0
+psycopg2-binary>=2.9.9,<3.0.0
+asyncpg>=0.29.0,<1.0.0
+alembic>=1.13.0,<2.0.0
+
+# Email (optional - for production)
+# aiosmtplib>=3.0.0,<4.0.0
+
+# Production utilities
+python-dotenv>=1.0.0,<2.0.0

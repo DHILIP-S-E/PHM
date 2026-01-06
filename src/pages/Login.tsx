@@ -27,7 +27,15 @@ export default function Login() {
             navigate('/');
         } catch (err: any) {
             console.error('Login error:', err);
-            setError(err.response?.data?.detail || 'Invalid credentials');
+            // Handle different error formats
+            const detail = err.response?.data?.detail;
+            if (typeof detail === 'string') {
+                setError(detail);
+            } else if (Array.isArray(detail)) {
+                setError(detail[0]?.msg || 'Validation error');
+            } else {
+                setError('Invalid credentials');
+            }
         } finally {
             setLoading(false);
         }

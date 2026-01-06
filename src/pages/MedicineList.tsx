@@ -10,11 +10,53 @@ interface Medicine {
     manufacturer: string;
     medicine_type: string;
     category?: string;
+    composition?: string;
+    strength?: string;
+    unit?: string;
+    pack_size?: number;
+    hsn_code?: string;
+    gst_rate?: number;
     mrp: number;
     purchase_price: number;
     total_stock: number;
     is_active: boolean;
 }
+
+interface MedicineForm {
+    name: string;
+    generic_name: string;
+    brand: string;
+    manufacturer: string;
+    medicine_type: string;
+    category: string;
+    composition: string;
+    strength: string;
+    unit: string;
+    pack_size: number;
+    hsn_code: string;
+    gst_rate: number;
+    mrp: number;
+    purchase_price: number;
+    is_prescription_required: boolean;
+}
+
+const emptyForm: MedicineForm = {
+    name: '',
+    generic_name: '',
+    brand: '',
+    manufacturer: '',
+    medicine_type: 'tablet',
+    category: '',
+    composition: '',
+    strength: '',
+    unit: 'strip',
+    pack_size: 10,
+    hsn_code: '',
+    gst_rate: 12,
+    mrp: 0,
+    purchase_price: 0,
+    is_prescription_required: false,
+};
 
 export default function MedicineList() {
     const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -24,6 +66,13 @@ export default function MedicineList() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const pageSize = 15;
+
+    // Modal states
+    const [showModal, setShowModal] = useState(false);
+    const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
+    const [formData, setFormData] = useState<MedicineForm>(emptyForm);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         fetchMedicines();
@@ -44,6 +93,81 @@ export default function MedicineList() {
             setMedicines([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const openCreateModal = () => {
+        setEditingMedicine(null);
+        setFormData(emptyForm);
+        setError('');
+        setShowModal(true);
+    };
+
+    const openEditModal = async (medicine: Medicine) => {
+        try {
+            const response = await medicinesApi.get(medicine.id);
+            const data = response.data;
+            setEditingMedicine(medicine);
+            setFormData({
+                name: data.name || '',
+                generic_name: data.generic_name || '',
+                brand: data.brand || '',
+                manufacturer: data.manufacturer || '',
+                medicine_type: data.medicine_type || 'tablet',
+                category: data.category || '',
+                composition: data.composition || '',
+                strength: data.strength || '',
+                unit: data.unit || 'strip',
+                pack_size: data.pack_size || 10,
+                hsn_code: data.hsn_code || '',
+                gst_rate: data.gst_rate || 12,
+                mrp: data.mrp || 0,
+                purchase_price: data.purchase_price || 0,
+                is_prescription_required: data.is_prescription_required || false,
+            });
+            setError('');
+            setShowModal(true);
+        } catch (err) {
+            console.error('Failed to fetch medicine details:', err);
+            alert('Failed to load medicine details');
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (!formData.name || !formData.generic_name || !formData.manufacturer || !formData.mrp) {
+            setError('Please fill in all required fields');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            if (editingMedicine) {
+                await medicinesApi.update(editingMedicine.id, formData);
+            } else {
+                await medicinesApi.create(formData);
+            }
+            setShowModal(false);
+            fetchMedicines();
+        } catch (err: any) {
+            console.error('Failed to save medicine:', err);
+            setError(err.response?.data?.detail || 'Failed to save medicine');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (medicine: Medicine) => {
+        if (!confirm(`Are you sure you want to delete "${medicine.name}"?`)) return;
+
+        try {
+            await medicinesApi.delete(medicine.id);
+            fetchMedicines();
+        } catch (err: any) {
+            console.error('Failed to delete medicine:', err);
+            alert(err.response?.data?.detail || 'Failed to delete medicine');
         }
     };
 
@@ -76,19 +200,19 @@ export default function MedicineList() {
                         <span className="material-symbols-outlined text-[20px]">upload</span>
                         Import
                     </button>
-                    <Link
-                        to="/medicines/new"
+                    <button
+                        onClick={openCreateModal}
                         className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
                         Add Medicine
-                    </Link>
+                    </button>
                 </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                             <span className="material-symbols-outlined text-blue-600">medication</span>
@@ -99,7 +223,7 @@ export default function MedicineList() {
                         </div>
                     </div>
                 </div>
-                <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                             <span className="material-symbols-outlined text-green-600">check_circle</span>
@@ -110,7 +234,7 @@ export default function MedicineList() {
                         </div>
                     </div>
                 </div>
-                <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                             <span className="material-symbols-outlined text-amber-600">inventory</span>
@@ -123,7 +247,7 @@ export default function MedicineList() {
                         </div>
                     </div>
                 </div>
-                <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                             <span className="material-symbols-outlined text-red-600">warning</span>
@@ -139,7 +263,7 @@ export default function MedicineList() {
             </div>
 
             {/* Filters */}
-            <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
                 <div className="flex flex-wrap gap-4">
                     <div className="flex-1 min-w-[250px]">
                         <div className="relative">
@@ -151,14 +275,14 @@ export default function MedicineList() {
                                 placeholder="Search by name, generic name, or manufacturer..."
                                 value={search}
                                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
                     </div>
                     <select
                         value={categoryFilter}
                         onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
                     >
                         <option value="all">All Categories</option>
                         <option value="antibiotics">Antibiotics</option>
@@ -177,7 +301,7 @@ export default function MedicineList() {
             </div>
 
             {/* Table */}
-            <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
@@ -187,11 +311,17 @@ export default function MedicineList() {
                         <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">medication</span>
                         <h3 className="text-lg font-medium text-slate-900 dark:text-white">No medicines found</h3>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">Add medicines to your catalog to get started</p>
+                        <button
+                            onClick={openCreateModal}
+                            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-700"
+                        >
+                            Add Medicine
+                        </button>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-slate-50 dark:bg-slate-800/50">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50">
                                 <tr>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Medicine</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Manufacturer</th>
@@ -202,9 +332,9 @@ export default function MedicineList() {
                                     <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {medicines.map((medicine) => (
-                                    <tr key={medicine.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                    <tr key={medicine.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -229,22 +359,22 @@ export default function MedicineList() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <span className={`font-medium ${(medicine.total_stock || 0) < 50
-                                                    ? 'text-red-600 dark:text-red-400'
-                                                    : 'text-slate-900 dark:text-white'
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-slate-900 dark:text-white'
                                                 }`}>
                                                 {(medicine.total_stock || 0).toLocaleString()}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${medicine.is_active
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                                                 }`}>
                                                 {medicine.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-2">
+                                            <div className="flex items-center justify-center gap-1">
                                                 <Link
                                                     to={`/medicines/${medicine.id}`}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -252,13 +382,20 @@ export default function MedicineList() {
                                                 >
                                                     <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">visibility</span>
                                                 </Link>
-                                                <Link
-                                                    to={`/medicines/${medicine.id}/batches`}
+                                                <button
+                                                    onClick={() => openEditModal(medicine)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                                    title="Batches"
+                                                    title="Edit"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">inventory_2</span>
-                                                </Link>
+                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">edit</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(medicine)}
+                                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -296,6 +433,220 @@ export default function MedicineList() {
                     </div>
                 )}
             </div>
+
+            {/* Create/Edit Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                                {editingMedicine ? 'Edit Medicine' : 'Add New Medicine'}
+                            </h2>
+                        </div>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="p-6 space-y-4">
+                                {error && (
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm">
+                                        {error}
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Medicine Name *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Paracetamol 500mg"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Generic Name *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.generic_name}
+                                            onChange={(e) => setFormData({ ...formData, generic_name: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Paracetamol"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Manufacturer *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.manufacturer}
+                                            onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Sun Pharma"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Brand</label>
+                                        <input
+                                            type="text"
+                                            value={formData.brand}
+                                            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Dolo"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                                        <select
+                                            value={formData.medicine_type}
+                                            onChange={(e) => setFormData({ ...formData, medicine_type: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        >
+                                            <option value="tablet">Tablet</option>
+                                            <option value="capsule">Capsule</option>
+                                            <option value="syrup">Syrup</option>
+                                            <option value="injection">Injection</option>
+                                            <option value="cream">Cream</option>
+                                            <option value="drops">Drops</option>
+                                            <option value="ointment">Ointment</option>
+                                            <option value="powder">Powder</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                                        <select
+                                            value={formData.category}
+                                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        >
+                                            <option value="">Select Category</option>
+                                            <option value="antibiotics">Antibiotics</option>
+                                            <option value="painkillers">Painkillers</option>
+                                            <option value="vitamins">Vitamins</option>
+                                            <option value="cardiac">Cardiac</option>
+                                            <option value="diabetes">Diabetes</option>
+                                            <option value="general">General</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Strength</label>
+                                        <input
+                                            type="text"
+                                            value={formData.strength}
+                                            onChange={(e) => setFormData({ ...formData, strength: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="500mg"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">MRP (₹) *</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={formData.mrp}
+                                            onChange={(e) => setFormData({ ...formData, mrp: parseFloat(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Purchase Price (₹)</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={formData.purchase_price}
+                                            onChange={(e) => setFormData({ ...formData, purchase_price: parseFloat(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">GST Rate (%)</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            value={formData.gst_rate}
+                                            onChange={(e) => setFormData({ ...formData, gst_rate: parseFloat(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Pack Size</label>
+                                        <input
+                                            type="number"
+                                            value={formData.pack_size}
+                                            onChange={(e) => setFormData({ ...formData, pack_size: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">HSN Code</label>
+                                        <input
+                                            type="text"
+                                            value={formData.hsn_code}
+                                            onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="3004"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Composition</label>
+                                        <input
+                                            type="text"
+                                            value={formData.composition}
+                                            onChange={(e) => setFormData({ ...formData, composition: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Paracetamol IP 500mg"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="prescription"
+                                        checked={formData.is_prescription_required}
+                                        onChange={(e) => setFormData({ ...formData, is_prescription_required: e.target.checked })}
+                                        className="rounded border-slate-300"
+                                    />
+                                    <label htmlFor="prescription" className="text-sm text-slate-700 dark:text-slate-300">
+                                        Prescription Required
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                    {saving ? 'Saving...' : editingMedicine ? 'Update Medicine' : 'Add Medicine'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

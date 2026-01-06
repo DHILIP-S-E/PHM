@@ -1,14 +1,26 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { path: '/', label: 'Dashboard', icon: 'dashboard' },
     { path: '/warehouses', label: 'Warehouses', icon: 'warehouse' },
+    { path: '/warehouses/stock', label: 'Stock Entry', icon: 'add_box' },
     { path: '/shops', label: 'Medical Shops', icon: 'storefront' },
     { path: '/medicines', label: 'Medicines', icon: 'medication' },
     { path: '/inventory', label: 'Inventory', icon: 'inventory_2' },
-    { path: '/invoices', label: 'Sales / POS', icon: 'point_of_sale' },
-    { path: '/reports/expiry', label: 'Reports', icon: 'bar_chart' },
-    { path: '/employees', label: 'HR', icon: 'badge' },
+    { path: '/dispatches', label: 'Dispatches', icon: 'local_shipping' },
+    { path: '/purchase-requests', label: 'Purchase Requests', icon: 'shopping_cart' },
+    { path: '/sales/pos', label: 'POS Billing', icon: 'point_of_sale' },
+    { path: '/sales/invoices', label: 'Invoices', icon: 'receipt_long' },
+    { path: '/sales/returns', label: 'Returns', icon: 'assignment_return' },
+    { path: '/customers', label: 'Customers', icon: 'people' },
+    { path: '/employees', label: 'Employees', icon: 'badge' },
+    { path: '/employees/attendance', label: 'Attendance', icon: 'event_available' },
+    { path: '/employees/salary', label: 'Salary', icon: 'payments' },
+    { path: '/users', label: 'Users', icon: 'manage_accounts' },
+    { path: '/reports/sales', label: 'Sales Reports', icon: 'bar_chart' },
+    { path: '/reports/expiry', label: 'Expiry Reports', icon: 'warning' },
+    { path: '/reports/tax', label: 'Tax Reports', icon: 'receipt' },
+    { path: '/notifications', label: 'Notifications', icon: 'notifications' },
 ];
 
 const settingsItems = [
@@ -16,9 +28,8 @@ const settingsItems = [
     { path: '/settings/system', label: 'System', icon: 'tune' },
 ];
 
-export default function Sidebar() {
-    const location = useLocation();
 
+export default function Sidebar() {
     return (
         <aside className="flex w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-surface-light dark:bg-surface-dark transition-colors duration-300">
             {/* Logo */}

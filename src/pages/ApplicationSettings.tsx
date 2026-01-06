@@ -294,7 +294,7 @@ export default function ApplicationSettings() {
     );
 }
 
-function ToggleItem({ id, title, description, checked, onChange }: { id: string; title: string; description: string; checked: boolean; onChange: (val: boolean) => void }) {
+function ToggleItem({ title, description, checked, onChange }: { id: string; title: string; description: string; checked: boolean; onChange: (val: boolean) => void }) {
     return (
         <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 first:border-t-0 first:pt-0">
             <div className="pr-4">

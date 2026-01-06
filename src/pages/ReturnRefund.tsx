@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { invoicesApi, customersApi } from '../services/api';
+import { invoicesApi } from '../services/api';
 
 export default function ReturnRefund() {
     const [searchInvoice, setSearchInvoice] = useState('');
@@ -236,8 +236,8 @@ export default function ReturnRefund() {
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="font-mono text-sm font-medium text-primary">{ret.id}</span>
                                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ret.status === 'completed'
-                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                         }`}>
                                         {ret.status}
                                     </span>

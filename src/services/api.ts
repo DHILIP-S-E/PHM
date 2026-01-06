@@ -1,8 +1,13 @@
 import axios from 'axios';
 
+// API Base URL from environment variable
+// Local: http://localhost:8000/api/v1
+// Production: https://your-api.com/api/v1
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
 // Create axios instance with base configuration
 const api = axios.create({
-    baseURL: '/api/v1',
+    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -59,13 +64,23 @@ export default api;
 
 // Auth API
 export const authApi = {
-    login: (email: string, password: string) =>
-        api.post('/auth/login', { email, password }),
+    login: (email: string, password: string) => {
+        // OAuth2 requires form-urlencoded with 'username' field
+        const formData = new URLSearchParams();
+        formData.append('username', email);
+        formData.append('password', password);
+
+        return api.post('/auth/login', formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
+    },
 
     logout: () => api.post('/auth/logout'),
 
     refreshToken: (refreshToken: string) =>
-        api.post('/auth/refresh-token', { refresh_token: refreshToken }),
+        api.post('/auth/refresh', { refresh_token: refreshToken }),
 };
 
 // Users API
@@ -170,7 +185,7 @@ export const dispatchesApi = {
 
     create: (data: any) => api.post('/dispatches', data),
 
-    updateStatus: (id: string, data: any) => api.put(`/dispatches/${id}/status`, data),
+    updateStatus: (id: string, status: string) => api.put(`/dispatches/${id}/status`, { status }),
 };
 
 // Invoices API
@@ -271,3 +286,42 @@ export const settingsApi = {
     getGstReport: (params?: { month?: number; year?: number }) =>
         api.get('/settings/tax/gst', { params }),
 };
+
+// Roles API
+export const rolesApi = {
+    list: () => api.get('/roles'),
+
+    get: (id: string) => api.get(`/roles/${id}`),
+
+    create: (data: any) => api.post('/roles', data),
+
+    update: (id: string, data: any) => api.put(`/roles/${id}`, data),
+
+    delete: (id: string) => api.delete(`/roles/${id}`),
+
+    assignToUser: (roleId: string, userId: string) =>
+        api.post(`/roles/${roleId}/users/${userId}`),
+
+    removeFromUser: (roleId: string, userId: string) =>
+        api.delete(`/roles/${roleId}/users/${userId}`),
+};
+
+// Tax API
+export const taxApi = {
+    getSummary: (params?: { shop_id?: string; month?: number; year?: number }) =>
+        api.get('/tax/summary', { params }),
+
+    getGstReport: (params: { month: number; year: number; shop_id?: string }) =>
+        api.get('/tax/gst', { params }),
+
+    getVatReport: (params: { month: number; year: number; shop_id?: string }) =>
+        api.get('/tax/vat', { params }),
+
+    getPeriodReport: (year: number, month: number, shop_id?: string) =>
+        api.get(`/tax/period/${year}/${month}`, { params: { shop_id } }),
+
+    getSettings: () => api.get('/tax/settings'),
+
+    updateSettings: (data: any) => api.put('/tax/settings', data),
+};
+

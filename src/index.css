@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable dark mode via class */
+@variant dark (&:where(.dark, .dark *));
+
 /* Custom CSS Variables */
 :root {
   --primary: #1754cf;
@@ -62,7 +65,7 @@
   border-color: var(--primary);
 }
 
-.toggle-checkbox:checked + .toggle-label {
+.toggle-checkbox:checked+.toggle-label {
   background-color: var(--primary);
 }
 

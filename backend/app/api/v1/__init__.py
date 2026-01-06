@@ -17,12 +17,15 @@ from app.api.v1.employees import router as employees_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.settings import router as settings_router
+from app.api.v1.roles import router as roles_router
+from app.api.v1.tax import router as tax_router
 
 router = APIRouter()
 
 # Mount all routers
 router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 router.include_router(users_router, prefix="/users", tags=["Users"])
+router.include_router(roles_router, prefix="/roles", tags=["Roles"])
 router.include_router(warehouses_router, prefix="/warehouses", tags=["Warehouses"])
 router.include_router(shops_router, prefix="/shops", tags=["Medical Shops"])
 router.include_router(medicines_router, prefix="/medicines", tags=["Medicines"])
@@ -35,3 +38,4 @@ router.include_router(employees_router, prefix="/employees", tags=["Employees"])
 router.include_router(reports_router, prefix="/reports", tags=["Reports"])
 router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
 router.include_router(settings_router, prefix="/settings", tags=["Settings"])
+router.include_router(tax_router, prefix="/tax", tags=["Tax & Accounting"])

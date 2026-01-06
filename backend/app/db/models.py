@@ -667,8 +667,6 @@ class Setting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-# ==================== AUDIT LOG ====================
-
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
@@ -683,3 +681,516 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index('idx_audit_entity', 'entity_type', 'entity_id'),)
+
+
+# ==================== ORGANIZATION EXTENDED MODELS ====================
+
+class WarehouseShopMap(Base):
+    """Many-to-many mapping between warehouses and shops"""
+    __tablename__ = "warehouse_shop_map"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    warehouse_id = Column(String(36), ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id", ondelete="CASCADE"), nullable=False)
+    is_primary = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_wh_shop_map', 'warehouse_id', 'shop_id', unique=True),)
+
+
+class WarehouseSettings(Base):
+    """Warehouse-specific configuration"""
+    __tablename__ = "warehouse_settings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    warehouse_id = Column(String(36), ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, unique=True)
+    auto_dispatch = Column(Boolean, default=False)
+    low_stock_threshold = Column(Integer, default=100)
+    expiry_alert_days = Column(Integer, default=90)
+    working_hours_start = Column(String(10))
+    working_hours_end = Column(String(10))
+    settings_json = Column(Text)  # Additional JSON settings
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ShopSettings(Base):
+    """Shop-specific configuration"""
+    __tablename__ = "shop_settings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id", ondelete="CASCADE"), nullable=False, unique=True)
+    invoice_prefix = Column(String(20), default="INV")
+    invoice_start_number = Column(Integer, default=1)
+    tax_inclusive = Column(Boolean, default=True)
+    allow_credit_sales = Column(Boolean, default=False)
+    max_credit_limit = Column(Float, default=0.0)
+    receipt_footer = Column(Text)
+    working_hours_start = Column(String(10))
+    working_hours_end = Column(String(10))
+    settings_json = Column(Text)  # Additional JSON settings
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ==================== CATALOG EXTENDED MODELS ====================
+
+class MedicineCategory(Base):
+    """Medicine category master"""
+    __tablename__ = "medicine_categories"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text)
+    parent_id = Column(String(36), ForeignKey("medicine_categories.id"))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MedicinePricingHistory(Base):
+    """Track medicine price changes"""
+    __tablename__ = "medicine_pricing_history"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    medicine_id = Column(String(36), ForeignKey("medicines.id", ondelete="CASCADE"), nullable=False)
+    old_mrp = Column(Float, nullable=False)
+    new_mrp = Column(Float, nullable=False)
+    old_purchase_price = Column(Float, nullable=False)
+    new_purchase_price = Column(Float, nullable=False)
+    changed_by = Column(String(36), ForeignKey("users.id"))
+    reason = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UnitMaster(Base):
+    """Units of measurement master (strip, bottle, box, bulk)"""
+    __tablename__ = "unit_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(50), unique=True, nullable=False)
+    short_name = Column(String(10), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class HSNMaster(Base):
+    """HSN codes for GST compliance"""
+    __tablename__ = "hsn_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    hsn_code = Column(String(20), unique=True, nullable=False)
+    description = Column(Text, nullable=False)
+    gst_rate = Column(Float, default=12.0)
+    cgst_rate = Column(Float, default=6.0)
+    sgst_rate = Column(Float, default=6.0)
+    igst_rate = Column(Float, default=12.0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== INVENTORY EXTENDED MODELS ====================
+
+class StockAdjustment(Base):
+    """Manual stock adjustments with audit trail"""
+    __tablename__ = "stock_adjustments"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    adjustment_number = Column(String(50), unique=True, nullable=False)
+    location_type = Column(String(20), nullable=False)  # warehouse, shop
+    location_id = Column(String(36), nullable=False)
+    medicine_id = Column(String(36), ForeignKey("medicines.id"), nullable=False)
+    batch_id = Column(String(36), ForeignKey("batches.id"), nullable=False)
+    adjustment_type = Column(String(20), nullable=False)  # increase, decrease, damage, expired
+    quantity = Column(Integer, nullable=False)
+    reason = Column(Text, nullable=False)
+    adjusted_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    approved_by = Column(String(36), ForeignKey("users.id"))
+    status = Column(String(20), default="pending")  # pending, approved, rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StockThreshold(Base):
+    """Low stock thresholds per item per location"""
+    __tablename__ = "stock_thresholds"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    location_type = Column(String(20), nullable=False)  # warehouse, shop
+    location_id = Column(String(36), nullable=False)
+    medicine_id = Column(String(36), ForeignKey("medicines.id"), nullable=False)
+    min_quantity = Column(Integer, default=10)
+    reorder_quantity = Column(Integer, default=50)
+    max_quantity = Column(Integer, default=500)
+    is_active = Column(Boolean, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (Index('idx_stock_threshold', 'location_type', 'location_id', 'medicine_id'),)
+
+
+class ExpiryAlert(Base):
+    """Expiry warning logs"""
+    __tablename__ = "expiry_alerts"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    location_type = Column(String(20), nullable=False)  # warehouse, shop
+    location_id = Column(String(36), nullable=False)
+    medicine_id = Column(String(36), ForeignKey("medicines.id"), nullable=False)
+    batch_id = Column(String(36), ForeignKey("batches.id"), nullable=False)
+    expiry_date = Column(Date, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    days_to_expiry = Column(Integer, nullable=False)
+    alert_type = Column(String(20), nullable=False)  # warning, critical, expired
+    is_acknowledged = Column(Boolean, default=False)
+    acknowledged_by = Column(String(36), ForeignKey("users.id"))
+    acknowledged_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== BILLING EXTENDED MODELS ====================
+
+class PaymentTransaction(Base):
+    """Payment records for invoices"""
+    __tablename__ = "payment_transactions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    transaction_number = Column(String(50), unique=True, nullable=False)
+    invoice_id = Column(String(36), ForeignKey("invoices.id"), nullable=False)
+    payment_method = Column(String(20), nullable=False)  # cash, card, upi, credit
+    amount = Column(Float, nullable=False)
+    reference_number = Column(String(100))  # Card/UPI reference
+    status = Column(String(20), default="completed")  # pending, completed, failed, refunded
+    processed_by = Column(String(36), ForeignKey("users.id"))
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BillingSequence(Base):
+    """Invoice number sequences per shop"""
+    __tablename__ = "billing_sequences"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id", ondelete="CASCADE"), nullable=False)
+    sequence_type = Column(String(20), nullable=False)  # invoice, return, purchase_request
+    prefix = Column(String(20), nullable=False)
+    current_number = Column(Integer, default=0)
+    fiscal_year = Column(String(10))
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (Index('idx_billing_seq', 'shop_id', 'sequence_type', 'fiscal_year', unique=True),)
+
+
+# ==================== TAX & ACCOUNTING MODELS ====================
+
+class TaxRecord(Base):
+    """GST/VAT transaction records"""
+    __tablename__ = "tax_records"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    invoice_id = Column(String(36), ForeignKey("invoices.id"))
+    return_id = Column(String(36), ForeignKey("returns.id"))
+    shop_id = Column(String(36), ForeignKey("medical_shops.id"), nullable=False)
+    transaction_type = Column(String(20), nullable=False)  # sale, return, purchase
+    hsn_code = Column(String(20))
+    taxable_amount = Column(Float, nullable=False)
+    cgst_rate = Column(Float, default=0.0)
+    cgst_amount = Column(Float, default=0.0)
+    sgst_rate = Column(Float, default=0.0)
+    sgst_amount = Column(Float, default=0.0)
+    igst_rate = Column(Float, default=0.0)
+    igst_amount = Column(Float, default=0.0)
+    total_tax = Column(Float, nullable=False)
+    transaction_date = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TaxSetting(Base):
+    """Tax configuration"""
+    __tablename__ = "tax_settings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id", ondelete="CASCADE"))
+    tax_type = Column(String(20), nullable=False)  # gst, vat
+    is_registered = Column(Boolean, default=True)
+    registration_number = Column(String(50))
+    default_rate = Column(Float, default=12.0)
+    is_tax_inclusive = Column(Boolean, default=True)
+    settings_json = Column(Text)  # Additional tax settings
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GSTReport(Base):
+    """GST filing summaries"""
+    __tablename__ = "gst_reports"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id"), nullable=False)
+    report_type = Column(String(20), nullable=False)  # GSTR1, GSTR3B
+    period_month = Column(Integer, nullable=False)
+    period_year = Column(Integer, nullable=False)
+    total_taxable = Column(Float, default=0.0)
+    total_cgst = Column(Float, default=0.0)
+    total_sgst = Column(Float, default=0.0)
+    total_igst = Column(Float, default=0.0)
+    total_tax = Column(Float, default=0.0)
+    status = Column(String(20), default="draft")  # draft, filed, acknowledged
+    filed_at = Column(DateTime)
+    arn_number = Column(String(50))
+    report_data = Column(Text)  # JSON
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class VATReport(Base):
+    """VAT filing summaries"""
+    __tablename__ = "vat_reports"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id"), nullable=False)
+    period_month = Column(Integer, nullable=False)
+    period_year = Column(Integer, nullable=False)
+    total_sales = Column(Float, default=0.0)
+    total_purchases = Column(Float, default=0.0)
+    output_vat = Column(Float, default=0.0)
+    input_vat = Column(Float, default=0.0)
+    net_vat = Column(Float, default=0.0)
+    status = Column(String(20), default="draft")
+    filed_at = Column(DateTime)
+    report_data = Column(Text)  # JSON
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IncomeExpense(Base):
+    """Income/expense tracking"""
+    __tablename__ = "income_expense"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id"))
+    warehouse_id = Column(String(36), ForeignKey("warehouses.id"))
+    entry_type = Column(String(20), nullable=False)  # income, expense
+    category = Column(String(50), nullable=False)
+    description = Column(Text, nullable=False)
+    amount = Column(Float, nullable=False)
+    payment_method = Column(String(20))
+    reference_number = Column(String(100))
+    entry_date = Column(Date, nullable=False)
+    created_by = Column(String(36), ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LedgerEntry(Base):
+    """Accounting ledger entries"""
+    __tablename__ = "ledger_entries"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    shop_id = Column(String(36), ForeignKey("medical_shops.id"))
+    account_type = Column(String(50), nullable=False)  # sales, purchase, expense, asset, liability
+    account_name = Column(String(100), nullable=False)
+    debit_amount = Column(Float, default=0.0)
+    credit_amount = Column(Float, default=0.0)
+    balance = Column(Float, default=0.0)
+    reference_type = Column(String(50))  # invoice, return, payment, adjustment
+    reference_id = Column(String(36))
+    description = Column(Text)
+    entry_date = Column(Date, nullable=False)
+    created_by = Column(String(36), ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_ledger_date', 'shop_id', 'entry_date'),)
+
+
+# ==================== CRM EXTENDED MODELS ====================
+
+class CustomerAddress(Base):
+    """Multiple addresses per customer"""
+    __tablename__ = "customer_addresses"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    customer_id = Column(String(36), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
+    address_type = Column(String(20), default="home")  # home, office, other
+    address_line1 = Column(Text, nullable=False)
+    address_line2 = Column(Text)
+    city = Column(String(50), nullable=False)
+    state = Column(String(50))
+    pincode = Column(String(10), nullable=False)
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomerActivityLog(Base):
+    """Customer interaction history"""
+    __tablename__ = "customer_activity_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    customer_id = Column(String(36), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
+    activity_type = Column(String(50), nullable=False)  # purchase, return, inquiry, complaint, followup
+    description = Column(Text)
+    reference_type = Column(String(50))
+    reference_id = Column(String(36))
+    created_by = Column(String(36), ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== HR EXTENDED MODELS ====================
+
+class PFRecord(Base):
+    """PF contribution records"""
+    __tablename__ = "pf_records"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    employee_id = Column(String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    month = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    basic_wages = Column(Float, nullable=False)
+    employee_contribution = Column(Float, nullable=False)
+    employer_contribution = Column(Float, nullable=False)
+    total_contribution = Column(Float, nullable=False)
+    status = Column(String(20), default="pending")  # pending, deposited
+    deposited_at = Column(DateTime)
+    challan_number = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_pf_period', 'employee_id', 'year', 'month'),)
+
+
+class ESIRecord(Base):
+    """ESI contribution records"""
+    __tablename__ = "esi_records"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    employee_id = Column(String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    month = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    gross_wages = Column(Float, nullable=False)
+    employee_contribution = Column(Float, nullable=False)
+    employer_contribution = Column(Float, nullable=False)
+    total_contribution = Column(Float, nullable=False)
+    status = Column(String(20), default="pending")  # pending, deposited
+    deposited_at = Column(DateTime)
+    challan_number = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_esi_period', 'employee_id', 'year', 'month'),)
+
+
+class PaySlip(Base):
+    """Generated payslips"""
+    __tablename__ = "pay_slips"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    employee_id = Column(String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    salary_record_id = Column(String(36), ForeignKey("salary_records.id"), nullable=False)
+    slip_number = Column(String(50), unique=True, nullable=False)
+    month = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    earnings_json = Column(Text)  # JSON breakdown of earnings
+    deductions_json = Column(Text)  # JSON breakdown of deductions
+    net_amount = Column(Float, nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+    downloaded_at = Column(DateTime)
+    file_path = Column(String(500))
+
+
+class SalesPerformance(Base):
+    """Sales staff KPIs"""
+    __tablename__ = "sales_performance"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    employee_id = Column(String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    period_month = Column(Integer, nullable=False)
+    period_year = Column(Integer, nullable=False)
+    total_sales = Column(Float, default=0.0)
+    total_invoices = Column(Integer, default=0)
+    total_customers = Column(Integer, default=0)
+    average_invoice_value = Column(Float, default=0.0)
+    target_amount = Column(Float, default=0.0)
+    achievement_percent = Column(Float, default=0.0)
+    incentive_earned = Column(Float, default=0.0)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_sales_perf', 'employee_id', 'period_year', 'period_month'),)
+
+
+# ==================== NOTIFICATION EXTENDED MODELS ====================
+
+class NotificationTemplate(Base):
+    """Message templates for notifications"""
+    __tablename__ = "notification_templates"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), unique=True, nullable=False)
+    type = Column(String(50), nullable=False)  # low_stock, expiry, order_status, etc.
+    channel = Column(String(20), nullable=False)  # email, sms, push, in_app
+    subject = Column(String(200))
+    body = Column(Text, nullable=False)
+    variables = Column(Text)  # JSON list of template variables
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+
+class NotificationLog(Base):
+    """Notification delivery logs"""
+    __tablename__ = "notification_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    notification_id = Column(String(36), ForeignKey("notifications.id"))
+    template_id = Column(String(36), ForeignKey("notification_templates.id"))
+    user_id = Column(String(36), ForeignKey("users.id"))
+    channel = Column(String(20), nullable=False)  # email, sms, push, in_app
+    recipient = Column(String(255))  # email/phone
+    subject = Column(String(200))
+    body = Column(Text)
+    status = Column(String(20), default="pending")  # pending, sent, delivered, failed
+    sent_at = Column(DateTime)
+    delivered_at = Column(DateTime)
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== SETTINGS EXTENDED MODELS ====================
+
+class ApplicationSetting(Base):
+    """Global application configuration"""
+    __tablename__ = "application_settings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text)
+    value_type = Column(String(20), default="string")  # string, number, boolean, json
+    category = Column(String(50), nullable=False)
+    description = Column(Text)
+    is_public = Column(Boolean, default=False)
+    updated_by = Column(String(36), ForeignKey("users.id"))
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FeatureFlag(Base):
+    """Feature toggles"""
+    __tablename__ = "feature_flags"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text)
+    is_enabled = Column(Boolean, default=False)
+    enabled_for = Column(Text)  # JSON: specific users, roles, or shops
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    updated_by = Column(String(36), ForeignKey("users.id"))
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FileUpload(Base):
+    """Uploaded file records"""
+    __tablename__ = "file_uploads"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    original_name = Column(String(255), nullable=False)
+    stored_name = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_type = Column(String(50))  # image, document, csv
+    mime_type = Column(String(100))
+    file_size = Column(Integer)  # bytes
+    entity_type = Column(String(50))  # customer, prescription, medicine, etc.
+    entity_id = Column(String(36))
+    uploaded_by = Column(String(36), ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_file_entity', 'entity_type', 'entity_id'),)
