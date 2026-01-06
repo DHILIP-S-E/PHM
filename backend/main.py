@@ -32,10 +32,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration - Allow all origins for development
+# CORS Configuration - Allow frontend origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for now; restrict in production
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://pmsmdu.netlify.app",
+        "*",  # Allow all origins as fallback
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
