@@ -32,7 +32,7 @@ export default function NotificationsPage() {
             if (typeFilter) params.notification_type = typeFilter;
 
             const response = await notificationsApi.list(params);
-            setNotifications(response.data.items || response.data);
+            setNotifications(response.data?.items || response.data || []);
         } catch (error) {
             console.error('Error loading notifications:', error);
         } finally {
@@ -103,7 +103,7 @@ export default function NotificationsPage() {
         return date.toLocaleDateString();
     };
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.is_read).length : 0;
 
     return (
         <div className="notifications-page">
@@ -360,7 +360,7 @@ export default function NotificationsPage() {
 
             {loading ? (
                 <div className="loading">Loading notifications...</div>
-            ) : notifications.length === 0 ? (
+            ) : !Array.isArray(notifications) || notifications.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-state-icon">🔔</div>
                     <h3>No notifications</h3>

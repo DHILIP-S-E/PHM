@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
 
 export default function Login() {
     const navigate = useNavigate();
+    const { refreshUser } = useUser();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,6 +25,11 @@ export default function Login() {
             // Store tokens
             localStorage.setItem('access_token', response.data.access_token);
             localStorage.setItem('refresh_token', response.data.refresh_token);
+
+            // Load user data immediately after login
+            console.log('🔑 Login: Tokens saved, refreshing user data...');
+            await refreshUser();
+            console.log('✅ Login: User data loaded, navigating to dashboard');
 
             // Redirect to dashboard
             navigate('/');
@@ -42,7 +50,7 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex overflow-hidden">
             {/* Left Panel - Branding */}
             <div className="hidden lg:flex lg:w-1/2 bg-blue-600 p-12 flex-col justify-between relative overflow-hidden">
                 {/* Background Pattern */}
@@ -52,9 +60,9 @@ export default function Login() {
                     <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-white rounded-full"></div>
                 </div>
 
-                <div className="relative z-10">
+                <div className="relative z-10 animate-fadeIn">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shadow-lg">
                             <span className="material-symbols-outlined text-white text-2xl">local_pharmacy</span>
                         </div>
                         <div>
@@ -64,7 +72,7 @@ export default function Login() {
                     </div>
                 </div>
 
-                <div className="relative z-10 space-y-8">
+                <div className="relative z-10 space-y-8 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
                     <div>
                         <h2 className="text-4xl font-bold text-white leading-tight">
                             Complete Pharmacy<br />Management Solution
@@ -75,22 +83,22 @@ export default function Login() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/10 backdrop-blur rounded-xl p-4">
+                        <div className="bg-white/10 backdrop-blur rounded-xl p-4 hover:bg-white/20 transition-colors cursor-pointer animate-fadeInUp" style={{ animationDelay: '200ms' }}>
                             <span className="material-symbols-outlined text-white text-2xl mb-2">inventory_2</span>
                             <h3 className="text-white font-semibold">Inventory</h3>
                             <p className="text-blue-200 text-sm">Real-time stock tracking</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur rounded-xl p-4">
+                        <div className="bg-white/10 backdrop-blur rounded-xl p-4 hover:bg-white/20 transition-colors cursor-pointer animate-fadeInUp" style={{ animationDelay: '250ms' }}>
                             <span className="material-symbols-outlined text-white text-2xl mb-2">point_of_sale</span>
                             <h3 className="text-white font-semibold">POS Billing</h3>
                             <p className="text-blue-200 text-sm">Fast checkout system</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur rounded-xl p-4">
+                        <div className="bg-white/10 backdrop-blur rounded-xl p-4 hover:bg-white/20 transition-colors cursor-pointer animate-fadeInUp" style={{ animationDelay: '300ms' }}>
                             <span className="material-symbols-outlined text-white text-2xl mb-2">local_shipping</span>
                             <h3 className="text-white font-semibold">Dispatch</h3>
                             <p className="text-blue-200 text-sm">Warehouse to shop flow</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur rounded-xl p-4">
+                        <div className="bg-white/10 backdrop-blur rounded-xl p-4 hover:bg-white/20 transition-colors cursor-pointer animate-fadeInUp" style={{ animationDelay: '350ms' }}>
                             <span className="material-symbols-outlined text-white text-2xl mb-2">analytics</span>
                             <h3 className="text-white font-semibold">Reports</h3>
                             <p className="text-blue-200 text-sm">Business insights</p>
@@ -116,7 +124,7 @@ export default function Login() {
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-200 dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-200 dark:border-slate-700 animate-fadeIn">
                         <div className="text-center mb-8">
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
                             <p className="text-slate-500 dark:text-slate-400 mt-2">Sign in to your account</p>
@@ -158,13 +166,23 @@ export default function Login() {
                                         <span className="material-symbols-outlined text-[20px]">lock</span>
                                     </span>
                                     <input
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className="w-full pl-12 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        className="w-full pl-12 pr-12 py-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                                         placeholder="••••••••"
                                         required
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                        title={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">
+                                            {showPassword ? 'visibility_off' : 'visibility'}
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
 

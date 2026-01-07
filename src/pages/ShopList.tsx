@@ -148,10 +148,18 @@ export default function ShopList() {
 
         setSaving(true);
         try {
+            // Sanitize payload: convert empty strings to undefined/null
+            const payload = {
+                ...formData,
+                email: formData.email || undefined,
+                gst_number: formData.gst_number || undefined,
+                warehouse_id: formData.warehouse_id || undefined,
+            };
+
             if (editingShop) {
-                await shopsApi.update(editingShop.id, formData);
+                await shopsApi.update(editingShop.id, payload);
             } else {
-                await shopsApi.create(formData);
+                await shopsApi.create(payload);
             }
             setShowModal(false);
             fetchShops();
@@ -178,22 +186,31 @@ export default function ShopList() {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="p-6 lg:p-8 space-y-6">
+        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Medical Shops</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Medical Shops</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage retail pharmacy locations
+                        Manage {totalItems} retail pharmacy locations across your network
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add Shop
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={fetchShops}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">refresh</span>
+                        Refresh
+                    </button>
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 hover:shadow-blue-500/40"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        Add Shop
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -265,8 +282,8 @@ export default function ShopList() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {shops.map((shop) => (
-                                    <tr key={shop.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                {shops.map((shop, index) => (
+                                    <tr key={shop.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group animate-fadeIn" style={{ animationDelay: `${index * 30}ms` }}>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -301,13 +318,13 @@ export default function ShopList() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-1">
+                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => openEditModal(shop)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">edit</span>
+                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">edit</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(shop)}
@@ -356,8 +373,8 @@ export default function ShopList() {
 
             {/* Create/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto animate-scaleIn">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {editingShop ? 'Edit Shop' : 'Add New Shop'}

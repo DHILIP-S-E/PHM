@@ -1,92 +1,241 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { getRoleName } from '../utils/rbac';
 
-const navItems = [
-    { path: '/', label: 'Dashboard', icon: 'dashboard' },
-    { path: '/warehouses', label: 'Warehouses', icon: 'warehouse' },
-    { path: '/warehouses/stock', label: 'Stock Entry', icon: 'add_box' },
-    { path: '/shops', label: 'Medical Shops', icon: 'storefront' },
-    { path: '/medicines', label: 'Medicines', icon: 'medication' },
-    { path: '/inventory', label: 'Inventory', icon: 'inventory_2' },
-    { path: '/dispatches', label: 'Dispatches', icon: 'local_shipping' },
-    { path: '/purchase-requests', label: 'Purchase Requests', icon: 'shopping_cart' },
-    { path: '/sales/pos', label: 'POS Billing', icon: 'point_of_sale' },
-    { path: '/sales/invoices', label: 'Invoices', icon: 'receipt_long' },
-    { path: '/sales/returns', label: 'Returns', icon: 'assignment_return' },
-    { path: '/customers', label: 'Customers', icon: 'people' },
-    { path: '/employees', label: 'Employees', icon: 'badge' },
-    { path: '/employees/attendance', label: 'Attendance', icon: 'event_available' },
-    { path: '/employees/salary', label: 'Salary', icon: 'payments' },
-    { path: '/users', label: 'Users', icon: 'manage_accounts' },
-    { path: '/reports/sales', label: 'Sales Reports', icon: 'bar_chart' },
-    { path: '/reports/expiry', label: 'Expiry Reports', icon: 'warning' },
-    { path: '/reports/tax', label: 'Tax Reports', icon: 'receipt' },
-    { path: '/notifications', label: 'Notifications', icon: 'notifications' },
+interface NavItemType {
+    path: string;
+    label: string;
+    icon: string;
+    badge?: number | string;
+    roles?: string[]; // Allowed roles - if undefined, available to all authenticated users
+}
+
+// Simple flat navigation list with role-based access control
+const navigationItems: NavItemType[] = [
+    { path: '/', label: 'Dashboard', icon: 'dashboard' }, // All roles
+    { path: '/warehouses', label: 'Warehouses', icon: 'warehouse', roles: ['super_admin'] },
+    { path: '/shops', label: 'Medical Shops', icon: 'storefront', roles: ['super_admin', 'warehouse_admin'] },
+    { path: '/medicines', label: 'Medicines', icon: 'medication', roles: ['super_admin', 'warehouse_admin'] },
+    { path: '/inventory', label: 'Inventory', icon: 'inventory_2', roles: ['super_admin', 'warehouse_admin'] },
+    { path: '/warehouses/stock', label: 'Stock Entry', icon: 'add_box', roles: ['super_admin', 'warehouse_admin'] },
+    { path: '/dispatches', label: 'Dispatches', icon: 'local_shipping', roles: ['super_admin', 'warehouse_admin'] },
+    { path: '/purchase-requests', label: 'Purchase Requests', icon: 'shopping_cart', roles: ['super_admin', 'warehouse_admin', 'shop_owner'] },
+    { path: '/sales/pos', label: 'POS Billing', icon: 'point_of_sale', roles: ['super_admin', 'shop_owner', 'sales_staff'] },
+    { path: '/sales/invoices', label: 'Invoices', icon: 'receipt_long', roles: ['super_admin', 'shop_owner'] },
+    { path: '/sales/returns', label: 'Returns & Refunds', icon: 'assignment_return', roles: ['super_admin', 'shop_owner'] },
+    { path: '/customers', label: 'Customers', icon: 'people', roles: ['super_admin', 'shop_owner', 'sales_staff'] },
+    { path: '/employees', label: 'Employees', icon: 'badge', roles: ['super_admin'] },
+    { path: '/employees/attendance', label: 'Attendance', icon: 'event_available', roles: ['super_admin'] },
+    { path: '/employees/salary', label: 'Salary', icon: 'payments', roles: ['super_admin'] },
+    { path: '/reports/sales', label: 'Sales Reports', icon: 'bar_chart', roles: ['super_admin', 'shop_owner'] },
+    { path: '/reports/expiry', label: 'Expiry Reports', icon: 'warning', roles: ['super_admin', 'warehouse_admin'] },
+    { path: '/reports/tax', label: 'Tax Reports', icon: 'receipt', roles: ['super_admin', 'shop_owner'] },
 ];
 
-const settingsItems = [
-    { path: '/settings/application', label: 'App Settings', icon: 'settings' },
-    { path: '/settings/system', label: 'System', icon: 'tune' },
+const systemItems: NavItemType[] = [
+    { path: '/users', label: 'User Management', icon: 'manage_accounts', roles: ['super_admin'] },
+    { path: '/notifications', label: 'Notifications', icon: 'notifications', badge: 3 }, // All roles
+    { path: '/settings/application', label: 'App Settings', icon: 'settings', roles: ['super_admin'] },
+    { path: '/settings/system', label: 'System Config', icon: 'tune', roles: ['super_admin'] },
 ];
-
 
 export default function Sidebar() {
+    const navigate = useNavigate();
+    const { user } = useUser();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Get user role from context
+    const userRole = user?.role || 'user';
+
+    // DEBUG: Log user and role info
+    console.log('🔍 Sidebar Debug:', {
+        user,
+        userRole,
+        filteredItems: navigationItems.filter(item => !item.roles || item.roles.includes(userRole)).length,
+        totalItems: navigationItems.length
+    });
+
+    // Load sidebar state from localStorage
+    useEffect(() => {
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState) {
+            setIsCollapsed(savedState === 'true');
+        }
+    }, []);
+
+    const toggleSidebar = () => {
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        localStorage.setItem('sidebarCollapsed', String(newState));
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_role');
+        navigate('/login');
+    };
+
     return (
-        <aside className="flex w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-surface-light dark:bg-surface-dark transition-colors duration-300">
-            {/* Logo */}
-            <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100 dark:border-slate-800/50">
-                <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10 text-primary">
-                    <span className="material-symbols-outlined">local_pharmacy</span>
+        <aside
+            className={`
+                flex flex-col border-r border-slate-200 dark:border-slate-800 
+                bg-white dark:bg-slate-900 transition-all duration-300 ease-in-out
+                ${isCollapsed ? 'w-20' : 'w-64'}
+            `}
+        >
+            {/* Logo Section */}
+            <div className="flex items-center justify-between h-16 px-4 border-b border-slate-100 dark:border-slate-800">
+                <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
+                    <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30">
+                        <span className="material-symbols-outlined">local_pharmacy</span>
+                    </div>
+                    {!isCollapsed && (
+                        <div className="animate-fadeIn">
+                            <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">PharmaEC</h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Management System</p>
+                        </div>
+                    )}
                 </div>
-                <div>
-                    <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">PharmaEC</h1>
-                    <p className="text-xs text-slate-500">Management System</p>
-                </div>
+                {!isCollapsed && (
+                    <button
+                        onClick={toggleSidebar}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        title="Collapse sidebar"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                    </button>
+                )}
             </div>
 
-            {/* Navigation */}
-            <nav className="flex flex-1 flex-col gap-1 px-3 py-4 overflow-y-auto">
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${isActive
-                                ? 'bg-primary text-white'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`
-                        }
-                    >
-                        <span className="material-symbols-outlined">{item.icon}</span>
-                        <span className="text-sm font-medium">{item.label}</span>
-                    </NavLink>
-                ))}
+            {/* Collapse toggle for collapsed state */}
+            {isCollapsed && (
+                <button
+                    onClick={toggleSidebar}
+                    className="mx-auto mt-3 p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Expand sidebar"
+                >
+                    <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                </button>
+            )}
 
-                <div className="my-3 h-px bg-slate-200 dark:bg-slate-700"></div>
-                <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Settings</p>
+            {/* Navigation - Simple Flat List */}
+            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 no-scrollbar">
+                {navigationItems
+                    .filter(item => !item.roles || item.roles.includes(userRole))
+                    .map((item, index) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative
+                                ${isActive
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                                }
+                                ${isCollapsed ? 'justify-center' : ''}
+                                animate-fadeIn`
+                            }
+                            style={{ animationDelay: `${index * 20}ms` }}
+                            title={isCollapsed ? item.label : undefined}
+                        >
+                            <span className="material-symbols-outlined text-[22px] transition-transform group-hover:scale-110">
+                                {item.icon}
+                            </span>
+                            {!isCollapsed && (
+                                <>
+                                    <span className="text-sm font-medium flex-1">{item.label}</span>
+                                    {item.badge && (
+                                        <span className="px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
+                                            {item.badge}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
 
-                {settingsItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${isActive
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`
-                        }
-                    >
-                        <span className="material-symbols-outlined">{item.icon}</span>
-                        <span className="text-sm font-medium">{item.label}</span>
-                    </NavLink>
-                ))}
+                {/* System Items */}
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-700 mt-4">
+                    {systemItems
+                        .filter(item => !item.roles || item.roles.includes(userRole))
+                        .map((item, index) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path!}
+                                className={({ isActive }) =>
+                                    `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+                                    ${isActive
+                                        ? 'bg-primary/10 text-primary dark:text-blue-400'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                                    }
+                                    ${isCollapsed ? 'justify-center' : ''}`
+                                }
+                                style={{ animationDelay: `${index * 30}ms` }}
+                                title={isCollapsed ? item.label : undefined}
+                            >
+                                <span className="material-symbols-outlined text-[22px] transition-transform group-hover:scale-110">
+                                    {item.icon}
+                                </span>
+                                {!isCollapsed && (
+                                    <>
+                                        <span className="text-sm font-medium flex-1">{item.label}</span>
+                                        {item.badge && (
+                                            <span className="px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
+                                                {item.badge}
+                                            </span>
+                                        )}
+                                    </>
+                                )}
+                            </NavLink>
+                        ))}
+                </div>
             </nav>
 
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-                <button className="flex w-full items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <span className="material-symbols-outlined">logout</span>
-                    <span className="text-sm font-medium">Sign Out</span>
-                </button>
+            {/* User Profile Section */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                {!isCollapsed ? (
+                    <div className="flex items-center gap-3 animate-fadeIn">
+                        <div className="relative">
+                            <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                {userRole === 'super_admin' ? 'SA' : 'A'}
+                            </div>
+                            <div className="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{user?.full_name || 'User'}</p>
+                            <div className="flex items-center gap-1">
+                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-primary/10 text-primary rounded capitalize">
+                                    {getRoleName(userRole)}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Logout"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">logout</span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="relative">
+                            <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                                {userRole === 'super_admin' ? 'SA' : 'A'}
+                            </div>
+                            <div className="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Logout"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">logout</span>
+                        </button>
+                    </div>
+                )}
             </div>
         </aside>
     );

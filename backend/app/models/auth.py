@@ -55,7 +55,6 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     phone: Optional[str] = None
-    is_active: bool = True
 
 
 class UserCreate(UserBase):
@@ -73,6 +72,7 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     id: str
     role: RoleType
+    is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
 

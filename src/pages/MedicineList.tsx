@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
+import BatchManagementModal from '../components/BatchManagementModal';
 
 interface Medicine {
     id: string;
@@ -73,6 +74,10 @@ export default function MedicineList() {
     const [formData, setFormData] = useState<MedicineForm>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    // Batch modal states
+    const [showBatchModal, setShowBatchModal] = useState(false);
+    const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
 
     useEffect(() => {
         fetchMedicines();
@@ -186,23 +191,30 @@ export default function MedicineList() {
     };
 
     return (
-        <div className="p-6 lg:p-8 space-y-6">
+        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Medicines</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Medicines</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage medicine catalog and inventory
+                        Manage {totalItems} medicines in your catalog
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                    <button
+                        onClick={fetchMedicines}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">refresh</span>
+                        Refresh
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
                         <span className="material-symbols-outlined text-[20px]">upload</span>
                         Import
                     </button>
                     <button
                         onClick={openCreateModal}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 hover:shadow-blue-500/40"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
                         Add Medicine
@@ -212,25 +224,25 @@ export default function MedicineList() {
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeInUp">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-blue-600">medication</span>
+                            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">medication</span>
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalItems}</p>
-                            <p className="text-sm text-slate-500">Total Medicines</p>
+                            <p className="text-xs text-slate-500">Total Medicines</p>
                         </div>
                     </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeInUp" style={{ animationDelay: '50ms' }}>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-green-600">check_circle</span>
+                            <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900 dark:text-white">{medicines.filter(m => m.is_active).length}</p>
-                            <p className="text-sm text-slate-500">Active Items</p>
+                            <p className="text-xs text-slate-500">Active Items</p>
                         </div>
                     </div>
                 </div>
@@ -333,8 +345,8 @@ export default function MedicineList() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {medicines.map((medicine) => (
-                                    <tr key={medicine.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                {medicines.map((medicine, index) => (
+                                    <tr key={medicine.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group animate-fadeIn" style={{ animationDelay: `${index * 20}ms` }}>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -374,20 +386,30 @@ export default function MedicineList() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-1">
+                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedMedicine(medicine);
+                                                        setShowBatchModal(true);
+                                                    }}
+                                                    className="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                                    title="Manage Batches"
+                                                >
+                                                    <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-[20px]">inventory_2</span>
+                                                </button>
                                                 <Link
                                                     to={`/medicines/${medicine.id}`}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="View Details"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">visibility</span>
+                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">visibility</span>
                                                 </Link>
                                                 <button
                                                     onClick={() => openEditModal(medicine)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">edit</span>
+                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">edit</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(medicine)}
@@ -436,8 +458,8 @@ export default function MedicineList() {
 
             {/* Create/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-auto animate-scaleIn">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {editingMedicine ? 'Edit Medicine' : 'Add New Medicine'}
@@ -646,6 +668,19 @@ export default function MedicineList() {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {/* Batch Management Modal */}
+            {showBatchModal && selectedMedicine && (
+                <BatchManagementModal
+                    medicineId={selectedMedicine.id}
+                    medicineName={selectedMedicine.name}
+                    onClose={() => {
+                        setShowBatchModal(false);
+                        setSelectedMedicine(null);
+                        fetchMedicines(); // Refresh to update batch counts
+                    }}
+                />
             )}
         </div>
     );

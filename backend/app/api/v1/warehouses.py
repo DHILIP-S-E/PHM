@@ -22,7 +22,7 @@ async def list_warehouses(
     search: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
     """List all warehouses with pagination"""
     query = db.query(Warehouse)
@@ -68,7 +68,7 @@ async def list_warehouses(
 async def get_warehouse(
     warehouse_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
     """Get warehouse by ID"""
     warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()

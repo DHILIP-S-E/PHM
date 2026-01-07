@@ -75,74 +75,109 @@ export default function DispatchesList() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-wrap justify-between items-center gap-4">
+            <div className="flex flex-wrap items-end justify-between gap-4 animate-fadeIn">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dispatches</h1>
-                    <p className="text-slate-500 dark:text-slate-400">Track warehouse to shop deliveries</p>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dispatch History</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">Track warehouse to shop deliveries and monitor shipment status</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button onClick={fetchDispatches} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                        <span className="material-symbols-outlined text-[20px]">refresh</span>
+                        <span className="hidden sm:inline">Refresh</span>
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 font-medium">
+                        <span className="material-symbols-outlined text-[20px]">download</span>
+                        Export
+                    </button>
                 </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden animate-fadeInUp" style={{ animationDelay: '50ms' }}>
+                    <div className="absolute right-0 top-0 h-full w-1 bg-slate-400"></div>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Dispatches</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.total}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
                             <span className="material-symbols-outlined text-slate-600 dark:text-slate-400">inventory_2</span>
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
-                            <p className="text-xs text-slate-500">Total</p>
-                        </div>
                     </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                    <div className="absolute right-0 top-0 h-full w-1 bg-amber-500"></div>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending</p>
+                            <p className="text-2xl font-bold text-amber-600 mt-1">{stats.pending}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                             <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">schedule</span>
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
-                            <p className="text-xs text-slate-500">Pending</p>
-                        </div>
                     </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden animate-fadeInUp" style={{ animationDelay: '150ms' }}>
+                    <div className="absolute right-0 top-0 h-full w-1 bg-blue-500"></div>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">In Transit</p>
+                            <p className="text-2xl font-bold text-blue-600 mt-1">{stats.inTransit}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                             <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">local_shipping</span>
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-blue-600">{stats.inTransit}</p>
-                            <p className="text-xs text-slate-500">In Transit</p>
-                        </div>
                     </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
-                        </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden animate-fadeInUp" style={{ animationDelay: '200ms' }}>
+                    <div className="absolute right-0 top-0 h-full w-1 bg-green-500"></div>
+                    <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-2xl font-bold text-green-600">{stats.delivered}</p>
-                            <p className="text-xs text-slate-500">Delivered</p>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Delivered</p>
+                            <p className="text-2xl font-bold text-green-600 mt-1">{stats.delivered}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-3">
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
-                >
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="in_transit">In Transit</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
+            {/* Filters Toolbar */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeIn">
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="relative flex-1 max-w-md">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <span className="material-symbols-outlined text-[20px]">search</span>
+                        </span>
+                        <input
+                            type="text"
+                            placeholder="Search by dispatch ID or destination..."
+                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        />
+                    </div>
+                    <div className="relative">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="appearance-none pl-4 pr-10 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        >
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_transit">In Transit</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <span className="material-symbols-outlined text-[18px]">expand_more</span>
+                        </span>
+                    </div>
+                    <button className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">calendar_today</span>
+                        Date Range
+                    </button>
+                </div>
             </div>
 
             {/* Table */}
@@ -171,8 +206,8 @@ export default function DispatchesList() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {dispatches.map((d) => (
-                                <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30">
+                            {dispatches.map((d, index) => (
+                                <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors group animate-fadeIn" style={{ animationDelay: `${index * 30}ms` }}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <span className={`material-symbols-outlined text-[18px] ${d.status === 'delivered' ? 'text-green-500' : d.status === 'in_transit' ? 'text-blue-500' : 'text-amber-500'}`}>
@@ -191,12 +226,12 @@ export default function DispatchesList() {
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-500">{new Date(d.dispatch_date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex gap-2 justify-end">
+                                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => setSelectedDispatch(d)}
-                                                className="px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="View Details"
                                             >
-                                                View
+                                                <span className="material-symbols-outlined text-[20px]">visibility</span>
                                             </button>
                                             {d.status === 'pending' && (
                                                 <button
@@ -227,8 +262,8 @@ export default function DispatchesList() {
 
             {/* Dispatch Detail Modal */}
             {selectedDispatch && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 animate-scaleIn">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                             <div className="flex justify-between items-start">
                                 <div>

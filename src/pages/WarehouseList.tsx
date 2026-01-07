@@ -169,57 +169,121 @@ export default function WarehouseList() {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="p-6 lg:p-8 space-y-6">
+        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Warehouses</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Warehouses</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage your distribution centers
+                        Manage your {totalItems} distribution centers across all regions
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add Warehouse
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={fetchWarehouses}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">refresh</span>
+                        Refresh
+                    </button>
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 hover:shadow-blue-500/40"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        Add Warehouse
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeInUp">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">warehouse</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalItems}</p>
+                            <p className="text-xs text-slate-500">Total Warehouses</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeInUp" style={{ animationDelay: '50ms' }}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{warehouses.filter(w => w.status === 'active').length}</p>
+                            <p className="text-xs text-slate-500">Active</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">storefront</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{warehouses.reduce((acc, w) => acc + (w.shop_count || 0), 0)}</p>
+                            <p className="text-xs text-slate-500">Connected Shops</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeInUp" style={{ animationDelay: '150ms' }}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">engineering</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{warehouses.filter(w => w.status === 'maintenance').length}</p>
+                            <p className="text-xs text-slate-500">Maintenance</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Filters */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-                <div className="flex flex-wrap gap-4">
-                    <div className="flex-1 min-w-[250px]">
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex-1 min-w-[280px]">
+                        <div className="relative group">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
                                 <span className="material-symbols-outlined text-[20px]">search</span>
                             </span>
                             <input
                                 type="text"
-                                placeholder="Search warehouses..."
+                                placeholder="Search by name, code, or location..."
                                 value={search}
                                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary focus:bg-white dark:focus:bg-slate-800 transition-all"
                             />
                         </div>
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                    >
-                        <option value="all">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="maintenance">Maintenance</option>
-                    </select>
-                    <button
-                        onClick={fetchWarehouses}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">refresh</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                                className="appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/50 cursor-pointer"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="maintenance">Maintenance</option>
+                            </select>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <span className="material-symbols-outlined text-[20px]">expand_more</span>
+                            </span>
+                        </div>
+                        <button
+                            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            title="Export CSV"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">download</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -255,8 +319,8 @@ export default function WarehouseList() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {warehouses.map((warehouse) => (
-                                    <tr key={warehouse.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                {warehouses.map((warehouse, index) => (
+                                    <tr key={warehouse.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group animate-fadeIn" style={{ animationDelay: `${index * 30}ms` }}>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -290,20 +354,20 @@ export default function WarehouseList() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-1">
+                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => openViewModal(warehouse)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="View Details"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">visibility</span>
+                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">visibility</span>
                                                 </button>
                                                 <button
                                                     onClick={() => openEditModal(warehouse)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px]">edit</span>
+                                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">edit</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(warehouse)}
@@ -352,8 +416,8 @@ export default function WarehouseList() {
 
             {/* Create/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto animate-scaleIn">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
@@ -519,8 +583,8 @@ export default function WarehouseList() {
 
             {/* View Details Modal */}
             {viewingWarehouse && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg animate-scaleIn">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Warehouse Details</h2>
                             <button
@@ -551,8 +615,8 @@ export default function WarehouseList() {
                                 <div>
                                     <p className="text-slate-500">Status</p>
                                     <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${viewingWarehouse.status === 'active'
-                                            ? 'bg-green-100 text-green-700'
-                                            : 'bg-slate-100 text-slate-600'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-slate-100 text-slate-600'
                                         }`}>
                                         {viewingWarehouse.status}
                                     </span>

@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { UserProvider } from './contexts/UserContext';
+import ToastContainer from './components/Toast';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -24,6 +26,9 @@ import DispatchesList from './pages/DispatchesList';
 import PurchaseRequestsList from './pages/PurchaseRequestsList';
 import POSBilling from './pages/POSBilling';
 import NotificationsPage from './pages/NotificationsPage';
+import InventoryPage from './pages/InventoryPage';
+import WarehouseAdd from './pages/WarehouseAdd';
+import WarehouseEdit from './pages/WarehouseEdit';
 
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -33,80 +38,86 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<Login />} />
+    <UserProvider>
+      <ToastContainer />
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Protected routes */}
-        <Route path="/" element={
-          <PrivateRoute>
-            <DashboardLayout />
-          </PrivateRoute>
-        }>
-          <Route index element={<Dashboard />} />
+          {/* Protected routes */}
+          <Route path="/" element={
+            <PrivateRoute>
+              <DashboardLayout />
+            </PrivateRoute>
+          }>
+            <Route index element={<Dashboard />} />
 
-          {/* Users */}
-          <Route path="users" element={<UsersList />} />
+            {/* Users */}
+            <Route path="users" element={<UsersList />} />
 
-          {/* Warehouses */}
-          <Route path="warehouses" element={<WarehouseList />} />
-          <Route path="warehouses/stock" element={<WarehouseStockEntry />} />
+            {/* Warehouses */}
+            <Route path="warehouses" element={<WarehouseList />} />
+            <Route path="warehouses/add" element={<WarehouseAdd />} />
+            <Route path="warehouses/edit/:id" element={<WarehouseEdit />} />
+            <Route path="warehouses/stock" element={<WarehouseStockEntry />} />
 
-          {/* Shops */}
-          <Route path="shops" element={<ShopList />} />
-          <Route path="shops/:id/edit" element={<EditMedicalShop />} />
+            {/* Shops */}
+            <Route path="shops" element={<ShopList />} />
+            <Route path="shops/:id/edit" element={<EditMedicalShop />} />
 
-          {/* Medicines */}
-          <Route path="medicines" element={<MedicineList />} />
-          <Route path="medicines/:id" element={<MedicineDetails />} />
+            {/* Medicines */}
+            <Route path="medicines" element={<MedicineList />} />
+            <Route path="medicines/:id" element={<MedicineDetails />} />
 
 
-          {/* Inventory */}
-          <Route path="inventory" element={<MedicineList />} />
+            {/* Inventory */}
+            <Route path="inventory" element={<InventoryPage />} />
 
-          {/* Customers */}
-          <Route path="customers" element={<CustomersList />} />
+            {/* Customers */}
+            <Route path="customers" element={<CustomersList />} />
 
-          {/* Employees & HR */}
-          <Route path="employees" element={<EmployeesList />} />
-          <Route path="employees/attendance" element={<AttendanceManagement />} />
-          <Route path="employees/salary" element={<SalaryManagement />} />
+            {/* Employees & HR */}
+            <Route path="employees" element={<EmployeesList />} />
+            <Route path="employees/attendance" element={<AttendanceManagement />} />
+            <Route path="employees/salary" element={<SalaryManagement />} />
 
-          {/* Dispatches */}
-          <Route path="dispatches" element={<DispatchesList />} />
+            {/* Dispatches */}
+            <Route path="dispatches" element={<DispatchesList />} />
 
-          {/* Purchase Requests */}
-          <Route path="purchase-requests" element={<PurchaseRequestsList />} />
+            {/* Purchase Requests */}
+            <Route path="purchase-requests" element={<PurchaseRequestsList />} />
 
-          {/* Sales & Billing */}
-          <Route path="sales" element={<InvoicesList />} />
-          <Route path="sales/pos" element={<POSBilling />} />
-          <Route path="sales/invoices" element={<InvoicesList />} />
-          <Route path="sales/returns" element={<ReturnRefund />} />
+            {/* Sales & Billing */}
+            <Route path="sales" element={<InvoicesList />} />
+            <Route path="sales/pos" element={<POSBilling />} />
+            <Route path="sales/invoices" element={<InvoicesList />} />
+            <Route path="sales/returns" element={<ReturnRefund />} />
 
-          {/* Reports */}
-          <Route path="reports" element={<SalesReports />} />
-          <Route path="reports/sales" element={<SalesReports />} />
-          <Route path="reports/expiry" element={<ExpiryLossReport />} />
-          <Route path="reports/tax" element={<TaxReports />} />
+            {/* Reports */}
+            <Route path="reports" element={<SalesReports />} />
+            <Route path="reports/sales" element={<SalesReports />} />
+            <Route path="reports/expiry" element={<ExpiryLossReport />} />
+            <Route path="reports/tax" element={<TaxReports />} />
 
-          {/* Notifications */}
-          <Route path="notifications" element={<NotificationsPage />} />
+            {/* Notifications */}
+            <Route path="notifications" element={<NotificationsPage />} />
 
-          {/* Settings */}
-          <Route path="settings" element={<ApplicationSettings />} />
-          <Route path="settings/application" element={<ApplicationSettings />} />
-          <Route path="settings/system" element={<SystemSettings />} />
-        </Route>
+            {/* Settings */}
+            <Route path="settings" element={<ApplicationSettings />} />
+            <Route path="settings/application" element={<ApplicationSettings />} />
+            <Route path="settings/system" element={<SystemSettings />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </UserProvider>
   );
 }
 
 export default App;
+
 
 

@@ -61,7 +61,7 @@ export default function WarehouseStockEntry() {
 
     const loadMedicines = async () => {
         try {
-            const response = await medicinesApi.list({ size: 500 });
+            const response = await medicinesApi.list({ size: 100 });
             setMedicines(response.data.items || response.data);
         } catch (error) {
             console.error('Error loading medicines:', error);
@@ -71,9 +71,23 @@ export default function WarehouseStockEntry() {
     const loadBatches = async (medicineId: string) => {
         try {
             const response = await medicinesApi.getBatches(medicineId);
-            setBatches(response.data || []);
+
+            // Extract batches array safely
+            let batchesData = [];
+            if (response.data) {
+                if (Array.isArray(response.data)) {
+                    batchesData = response.data;
+                } else if (response.data.items && Array.isArray(response.data.items)) {
+                    batchesData = response.data.items;
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                    batchesData = response.data.data;
+                }
+            }
+
+            setBatches(batchesData);
         } catch (error) {
             console.error('Error loading batches:', error);
+            setBatches([]);
         }
     };
 

@@ -96,17 +96,21 @@ class MedicineListResponse(BaseModel):
 
 # Batch schemas
 class BatchBase(BaseModel):
-    medicine_id: str
     batch_number: str
-    manufacturing_date: date
+    manufacturing_date: Optional[date] = None
     expiry_date: date
     quantity: int = Field(ge=0)
-    purchase_price: float = Field(gt=0)
-    mrp: float = Field(gt=0)
+    purchase_price: Optional[float] = None
+    mrp: Optional[float] = None
 
 
-class BatchCreate(BatchBase):
-    pass
+class BatchCreate(BaseModel):
+    batch_number: str
+    manufacturing_date: Optional[date] = None
+    expiry_date: date
+    quantity: int = Field(ge=1)
+    purchase_price: Optional[float] = Field(None, gt=0)
+    mrp: Optional[float] = Field(None, gt=0)
 
 
 class BatchUpdate(BaseModel):
@@ -117,6 +121,7 @@ class BatchUpdate(BaseModel):
 
 class BatchResponse(BatchBase):
     id: str
+    medicine_id: str
     medicine_name: Optional[str] = None
     is_expired: bool = False
     days_to_expiry: int = 0

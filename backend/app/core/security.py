@@ -19,12 +19,16 @@ security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Truncate to 72 bytes to match bcrypt limit
+    truncated_password = plain_password[:72]
+    return pwd_context.verify(truncated_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    return pwd_context.hash(password)
+    # Truncate to 72 bytes to avoid bcrypt error
+    truncated_password = password[:72]
+    return pwd_context.hash(truncated_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -71,15 +75,15 @@ async def get_current_user(
             detail="Invalid token type"
         )
     
-    user_id = payload.get("sub")
+    user_id = payload.get("user_id")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload"
         )
     
-    # In production, fetch user from database
-    return {"user_id": user_id, "role": payload.get("role", "user")}
+    # Return user info from token
+    return {"user_id": user_id, "email": payload.get("sub"), "role": payload.get("role", "user")}
 
 
 def require_role(required_roles: list[str]):

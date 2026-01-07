@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+import logging
 
 from app.models.auth import (
     UserCreate, UserUpdate, UserResponse, UserListResponse,
@@ -15,6 +16,7 @@ from app.core.security import get_current_user, require_role, get_password_hash
 from app.db.database import get_db
 from app.db.models import User, Role, UserRole
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -24,12 +26,16 @@ async def list_users(
     size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
     role: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    is_active: Optional[bool] = Query(True, description="Filter by active status. Default is True (active users only)"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """List all users with pagination"""
     query = db.query(User)
+    
+    # Default: only show active users unless explicitly requested
+    if is_active is not None:
+        query = query.filter(User.is_active == is_active)
     
     if search:
         query = query.filter(
@@ -39,9 +45,6 @@ async def list_users(
     
     if role:
         query = query.filter(User.role == role)
-    
-    if is_active is not None:
-        query = query.filter(User.is_active == is_active)
     
     total = query.count()
     users = query.offset((page - 1) * size).limit(size).all()
@@ -73,6 +76,8 @@ async def create_user(
     current_user: dict = Depends(require_role(["super_admin"]))
 ):
     """Create a new user"""
+    logger.info(f"Creating user with data: {user_data.model_dump()}")
+    
     # Check if email exists
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
