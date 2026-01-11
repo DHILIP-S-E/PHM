@@ -1,12 +1,13 @@
 """
-Authentication and User schemas
+Authentication and User schemas with Permission-based authorization
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
 from enum import Enum
 
 
+# Legacy RoleType enum - kept for backward compatibility during migration
 class RoleType(str, Enum):
     SUPER_ADMIN = "super_admin"
     WAREHOUSE_ADMIN = "warehouse_admin"
@@ -17,7 +18,35 @@ class RoleType(str, Enum):
     ACCOUNTANT = "accountant"
 
 
-# Auth Schemas
+# ==================== PERMISSION SCHEMAS ====================
+
+class PermissionBase(BaseModel):
+    code: str
+    module: str
+    action: str
+    scope: str  # "global" | "warehouse" | "shop"
+    description: Optional[str] = None
+
+
+class PermissionCreate(PermissionBase):
+    pass
+
+
+class PermissionResponse(PermissionBase):
+    id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PermissionListResponse(BaseModel):
+    items: List[PermissionResponse]
+    total: int
+
+
+# ==================== AUTH SCHEMAS ====================
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -50,7 +79,8 @@ ForgotPasswordRequest = PasswordResetRequest
 ResetPasswordRequest = PasswordResetConfirm
 
 
-# User Schemas
+# ==================== USER SCHEMAS ====================
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
@@ -59,7 +89,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8)
-    role: RoleType = RoleType.PHARMACIST
+    # Support both legacy role enum and new role_id FK
+    role: Optional[RoleType] = None  # Legacy - will be deprecated
+    role_id: Optional[str] = None     # New - FK to roles table
     assigned_warehouse_id: Optional[str] = None
     assigned_shop_id: Optional[str] = None
 
@@ -69,44 +101,65 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     is_active: Optional[bool] = None
+    role_id: Optional[str] = None
 
 
 class UserResponse(UserBase):
     id: str
-    role: RoleType
+    role: Optional[str] = None  # Role name (from either legacy enum or new FK)
+    role_id: Optional[str] = None
+    permissions: List[str] = []  # Resolved permission codes
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
+    warehouse_id: Optional[str] = None  # Assigned warehouse
+    shop_id: Optional[str] = None       # Assigned shop
 
     class Config:
         from_attributes = True
 
 
 class UserListResponse(BaseModel):
-    items: list[UserResponse]
+    items: List[UserResponse]
     total: int
     page: int
     size: int
 
 
-# Role Schemas
+# ==================== ROLE SCHEMAS ====================
+
 class RoleBase(BaseModel):
     name: str
     description: Optional[str] = None
-    permissions: list[str] = []
+    entity_type: Optional[str] = None  # "warehouse" | "shop" | null
 
 
 class RoleCreate(RoleBase):
-    pass
+    permission_ids: List[str] = []  # Permission IDs to assign
+
+
+class RoleUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    permission_ids: Optional[List[str]] = None
 
 
 class RoleResponse(RoleBase):
     id: str
+    is_system: bool
+    is_creatable: bool
+    permissions: List[PermissionResponse] = []
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
+class RoleListResponse(BaseModel):
+    items: List[RoleResponse]
+    total: int
+
+
 class AssignRoleRequest(BaseModel):
     role_id: str
+

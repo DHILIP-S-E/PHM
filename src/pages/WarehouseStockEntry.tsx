@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { warehousesApi, medicinesApi, inventoryApi } from '../services/api';
-import { useWarehouseContext } from '../hooks/useEntityContext';
+import { useNavigate } from 'react-router-dom';
+import { medicinesApi, inventoryApi } from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
 
 interface Medicine {
     id: string;
@@ -19,20 +20,17 @@ interface Batch {
     mrp: number;
 }
 
-interface Warehouse {
-    id: string;
-    name: string;
-    code: string;
-}
-
 export default function WarehouseStockEntry() {
-    // Entity context - handles role-based warehouse resolution
-    const entityContext = useWarehouseContext();
+    const navigate = useNavigate();
+    const { activeEntity } = useOperationalContext();
 
-    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [existingBatches, setExistingBatches] = useState<Batch[]>([]); // For convenience dropdown
-    const [selectedWarehouse, setSelectedWarehouse] = useState('');
+
+    // Derived from context
+    const warehouseId = activeEntity?.type === 'warehouse' ? activeEntity.id : '';
+    const warehouseName = activeEntity?.type === 'warehouse' ? activeEntity.name : '';
+
     const [selectedMedicine, setSelectedMedicine] = useState('');
     // Batch is entered directly (created implicitly with stock)
     const [batchNumber, setBatchNumber] = useState('');
@@ -46,21 +44,19 @@ export default function WarehouseStockEntry() {
     const [recentEntries, setRecentEntries] = useState<any[]>([]);
     const [selectedExistingBatch, setSelectedExistingBatch] = useState('');
 
-    // Initialize with entity context
+    // Enforce Context
     useEffect(() => {
-        // Super Admin: loads all warehouses for selection
-        // Warehouse Admin: auto-applied, but we still load for display
-        loadWarehouses();
-        loadMedicines();
-    }, []);
-
-    // Auto-apply warehouse context for non-Super Admin users
-    useEffect(() => {
-        if (!entityContext.isSuperAdmin && entityContext.assignedWarehouseId) {
-            // Warehouse Admin: auto-select their assigned warehouse
-            setSelectedWarehouse(entityContext.assignedWarehouseId);
+        if (!activeEntity || activeEntity.type !== 'warehouse') {
+            navigate('/');
         }
-    }, [entityContext.isSuperAdmin, entityContext.assignedWarehouseId]);
+    }, [activeEntity, navigate]);
+
+    // Initialize
+    useEffect(() => {
+        if (activeEntity?.type === 'warehouse') {
+            loadMedicines();
+        }
+    }, [activeEntity]);
 
     // Load batches when medicine changes
     useEffect(() => {
@@ -75,14 +71,7 @@ export default function WarehouseStockEntry() {
         setSelectedExistingBatch('');
     }, [selectedMedicine]);
 
-    const loadWarehouses = async () => {
-        try {
-            const response = await warehousesApi.list();
-            setWarehouses(response.data.items || response.data);
-        } catch (error) {
-            console.error('Error loading warehouses:', error);
-        }
-    };
+
 
     const loadMedicines = async () => {
         try {
@@ -130,7 +119,7 @@ export default function WarehouseStockEntry() {
         e.preventDefault();
 
         // Validation: batch_number, expiry_date, quantity are MANDATORY
-        if (!selectedWarehouse || !selectedMedicine || !batchNumber || !expiryDate || !quantity) {
+        if (!warehouseId || !selectedMedicine || !batchNumber || !expiryDate || !quantity) {
             setMessage({ type: 'error', text: 'Please fill all required fields: Warehouse, Medicine, Batch Number, Expiry Date, and Quantity' });
             return;
         }
@@ -138,7 +127,7 @@ export default function WarehouseStockEntry() {
         setLoading(true);
         try {
             const stockData = {
-                warehouse_id: selectedWarehouse,
+                warehouse_id: warehouseId,
                 medicine_id: selectedMedicine,
                 batch_number: batchNumber,  // Batch created implicitly
                 expiry_date: expiryDate,     // Batch created implicitly
@@ -176,218 +165,56 @@ export default function WarehouseStockEntry() {
     };
 
     return (
-        <div className="warehouse-stock-entry">
-            <style>{`
-                .warehouse-stock-entry {
-                    padding: 24px;
-                    max-width: 1200px;
-                    margin: 0 auto;
-                }
-                .page-header {
-                    margin-bottom: 24px;
-                }
-                .page-header h1 {
-                    font-size: 24px;
-                    font-weight: 600;
-                    color: #1a1a2e;
-                    margin: 0 0 8px 0;
-                }
-                .page-header p {
-                    color: #666;
-                    margin: 0;
-                }
-                .content-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 24px;
-                }
-                @media (max-width: 768px) {
-                    .content-grid {
-                        grid-template-columns: 1fr;
-                    }
-                }
-                .card {
-                    background: white;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                    padding: 24px;
-                }
-                .card-title {
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: #1a1a2e;
-                    margin: 0 0 20px 0;
-                    padding-bottom: 12px;
-                    border-bottom: 1px solid #eee;
-                }
-                .form-group {
-                    margin-bottom: 16px;
-                }
-                .form-group label {
-                    display: block;
-                    font-weight: 500;
-                    color: #333;
-                    margin-bottom: 6px;
-                }
-                .form-group select,
-                .form-group input {
-                    width: 100%;
-                    padding: 10px 12px;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    transition: border-color 0.2s;
-                }
-                .form-group select:focus,
-                .form-group input:focus {
-                    outline: none;
-                    border-color: #4a6cf7;
-                }
-                .btn-primary {
-                    width: 100%;
-                    padding: 12px;
-                    background: linear-gradient(135deg, #4a6cf7, #6366f1);
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: transform 0.2s, box-shadow 0.2s;
-                }
-                .btn-primary:hover {
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(74, 108, 247, 0.4);
-                }
-                .btn-primary:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                    transform: none;
-                }
-                .message {
-                    padding: 12px;
-                    border-radius: 8px;
-                    margin-bottom: 16px;
-                }
-                .message.success {
-                    background: #d4edda;
-                    color: #155724;
-                }
-                .message.error {
-                    background: #f8d7da;
-                    color: #721c24;
-                }
-                .recent-entries {
-                    list-style: none;
-                    padding: 0;
-                    margin: 0;
-                }
-                .recent-entry {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 12px;
-                    border-bottom: 1px solid #eee;
-                }
-                .recent-entry:last-child {
-                    border-bottom: none;
-                }
-                .entry-info {
-                    flex: 1;
-                }
-                .entry-medicine {
-                    font-weight: 500;
-                    color: #333;
-                }
-                .entry-batch {
-                    font-size: 12px;
-                    color: #666;
-                }
-                .entry-quantity {
-                    font-weight: 600;
-                    color: #4a6cf7;
-                    font-size: 16px;
-                }
-                .entry-time {
-                    font-size: 12px;
-                    color: #999;
-                    margin-left: 12px;
-                }
-                .empty-state {
-                    text-align: center;
-                    padding: 40px;
-                    color: #999;
-                }
-                .medicine-info {
-                    background: #f8f9ff;
-                    padding: 12px;
-                    border-radius: 8px;
-                    margin-top: 8px;
-                    font-size: 13px;
-                }
-                .medicine-info-row {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 4px;
-                }
-                .medicine-info-row:last-child {
-                    margin-bottom: 0;
-                }
-            `}</style>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fadeIn">
+            <button
+                onClick={() => navigate('/warehouses')}
+                className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-6 transition-colors"
+            >
+                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                <span>Back to Warehouses</span>
+            </button>
 
-            <div className="page-header">
-                <h1>📦 Warehouse Stock Entry</h1>
-                <p>Add inventory to your warehouse</p>
+            <div className="mb-8">
+                <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">📦 Warehouse Stock Entry</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">Add new inventory items to your warehouse.</p>
             </div>
 
-            <div className="content-grid">
-                <div className="card">
-                    <h2 className="card-title">Add Stock</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary">add_circle</span>
+                        Add Stock
+                    </h2>
 
                     {message.text && (
-                        <div className={`message ${message.type}`}>
-                            {message.text}
+                        <div className={`p-4 rounded-xl mb-6 flex items-start gap-3 ${message.type === 'error'
+                            ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                            : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+                            }`}>
+                            <span className="material-symbols-outlined text-[20px] mt-0.5">
+                                {message.type === 'error' ? 'error' : 'check_circle'}
+                            </span>
+                            <p>{message.text}</p>
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Warehouse Selector - ONLY visible to Super Admin */}
-                        {entityContext.isSuperAdmin ? (
-                            <div className="form-group" style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #fdba74' }}>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span style={{ color: '#ea580c' }}>🔐</span>
-                                    <label style={{ color: '#c2410c', fontWeight: 600, fontSize: '13px' }}>Super Admin: Select Warehouse Context</label>
-                                </div>
-                                <select
-                                    value={selectedWarehouse}
-                                    onChange={(e) => setSelectedWarehouse(e.target.value)}
-                                    required
-                                    style={{ borderColor: '#fdba74' }}
-                                >
-                                    <option value="">-- Select Warehouse --</option>
-                                    {warehouses.map(wh => (
-                                        <option key={wh.id} value={wh.id}>
-                                            {wh.name} ({wh.code})
-                                        </option>
-                                    ))}
-                                </select>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Warehouse</label>
+                            <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 font-medium flex items-center gap-2">
+                                <span className="material-symbols-outlined text-slate-400">warehouse</span>
+                                {warehouseName}
                             </div>
-                        ) : (
-                            // Warehouse Admin: Show assigned warehouse (read-only)
-                            <div className="form-group" style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #86efac' }}>
-                                <label style={{ color: '#166534', fontWeight: 600 }}>📦 Warehouse (Auto-Applied)</label>
-                                <div style={{ padding: '10px', background: '#dcfce7', borderRadius: '6px', fontWeight: 500, color: '#166534' }}>
-                                    {warehouses.find(w => w.id === selectedWarehouse)?.name || 'Loading...'}
-                                </div>
-                                <p style={{ fontSize: '12px', color: '#15803d', marginTop: '4px' }}>Your assigned warehouse is auto-selected</p>
-                            </div>
-                        )}
+                        </div>
 
-                        <div className="form-group">
-                            <label>Medicine *</label>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Medicine *</label>
                             <select
                                 value={selectedMedicine}
                                 onChange={(e) => setSelectedMedicine(e.target.value)}
                                 required
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary/50"
                             >
                                 <option value="">Select Medicine</option>
                                 {medicines.map(med => (
@@ -399,58 +226,52 @@ export default function WarehouseStockEntry() {
                             {selectedMedicine && (() => {
                                 const med = medicines.find(m => m.id === selectedMedicine);
                                 return med ? (
-                                    <div className="medicine-info">
-                                        <div className="medicine-info-row">
-                                            <span>Generic:</span>
-                                            <span>{med.generic_name}</span>
-                                        </div>
-                                        <div className="medicine-info-row">
-                                            <span>MRP:</span>
-                                            <span>₹{med.mrp}</span>
-                                        </div>
-                                        <div className="medicine-info-row">
-                                            <span>Purchase Price:</span>
-                                            <span>₹{med.purchase_price}</span>
-                                        </div>
+                                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-sm grid grid-cols-2 gap-2">
+                                        <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Generic:</span> <span className="font-medium text-slate-900 dark:text-white">{med.generic_name}</span></div>
+                                        <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">MRP:</span> <span className="font-medium text-slate-900 dark:text-white">₹{med.mrp}</span></div>
                                     </div>
                                 ) : null;
                             })()}
                         </div>
 
-                        {/* Batch Entry Section - Batch is created implicitly */}
-                        <div className="form-group">
-                            <label>Batch Number *</label>
-                            <input
-                                type="text"
-                                value={batchNumber}
-                                onChange={(e) => setBatchNumber(e.target.value.toUpperCase())}
-                                placeholder="Enter batch number (e.g., BATCH2024-001)"
-                                required
-                                disabled={!selectedMedicine}
-                            />
-                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Batch Number *</label>
+                                <input
+                                    type="text"
+                                    value={batchNumber}
+                                    onChange={(e) => setBatchNumber(e.target.value.toUpperCase())}
+                                    placeholder="e.g., BATCH001"
+                                    required
+                                    disabled={!selectedMedicine}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-50 font-mono"
+                                />
+                            </div>
 
-                        <div className="form-group">
-                            <label>Expiry Date *</label>
-                            <input
-                                type="date"
-                                value={expiryDate}
-                                onChange={(e) => setExpiryDate(e.target.value)}
-                                required
-                                disabled={!selectedMedicine}
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Expiry Date *</label>
+                                <input
+                                    type="date"
+                                    value={expiryDate}
+                                    onChange={(e) => setExpiryDate(e.target.value)}
+                                    required
+                                    disabled={!selectedMedicine}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-50"
+                                />
+                            </div>
                         </div>
 
                         {/* Optional: Select from existing batches for convenience */}
                         {existingBatches.length > 0 && (
-                            <div className="form-group" style={{ background: '#f0f7ff', padding: '12px', borderRadius: '8px', marginTop: '-8px' }}>
-                                <label style={{ fontSize: '12px', color: '#666' }}>Or select an existing batch:</label>
+                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg">
+                                <label className="block text-xs font-medium text-amber-700 dark:text-amber-400 mb-2">Or select an existing batch to reuse details:</label>
                                 <select
                                     value={selectedExistingBatch}
                                     onChange={(e) => handleExistingBatchSelect(e.target.value)}
                                     disabled={!selectedMedicine}
+                                    className="w-full px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 text-sm"
                                 >
-                                    <option value="">-- Use new batch above --</option>
+                                    <option value="">-- Use new batch details above --</option>
                                     {existingBatches.map(batch => (
                                         <option key={batch.id} value={batch.id}>
                                             {batch.batch_number} (Exp: {batch.expiry_date})
@@ -460,64 +281,88 @@ export default function WarehouseStockEntry() {
                             </div>
                         )}
 
-                        <div className="form-group">
-                            <label>Quantity *</label>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Quantity *</label>
                             <input
                                 type="number"
                                 value={quantity}
                                 onChange={(e) => setQuantity(e.target.value)}
-                                placeholder="Enter quantity"
+                                placeholder="Enter quantity to add"
                                 min="1"
                                 required
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label>Rack Name / Box Name</label>
-                            <input
-                                type="text"
-                                value={rackName}
-                                onChange={(e) => setRackName(e.target.value)}
-                                placeholder="e.g., Painkillers Box, Cold Medicines"
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Rack / Box Name</label>
+                                <input
+                                    type="text"
+                                    value={rackName}
+                                    onChange={(e) => setRackName(e.target.value)}
+                                    placeholder="e.g., Shelf A"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Rack Number</label>
+                                <input
+                                    type="text"
+                                    value={rackNumber}
+                                    onChange={(e) => setRackNumber(e.target.value.toUpperCase())}
+                                    placeholder="e.g., A1"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                />
+                            </div>
                         </div>
 
-                        <div className="form-group">
-                            <label>Rack Number</label>
-                            <input
-                                type="text"
-                                value={rackNumber}
-                                onChange={(e) => setRackNumber(e.target.value.toUpperCase())}
-                                placeholder="e.g., R-01, R-2A"
-                            />
-                        </div>
-
-                        <button type="submit" className="btn-primary" disabled={loading}>
-                            {loading ? 'Adding...' : 'Add Stock Entry'}
+                        <button type="submit" className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg disabled:opacity-50 transition-all" disabled={loading}>
+                            {loading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    Adding Stock...
+                                </span>
+                            ) : 'Add Stock Entry'}
                         </button>
                     </form>
                 </div>
 
-                <div className="card">
-                    <h2 className="card-title">Recent Entries</h2>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 h-fit">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-slate-500">history</span>
+                        Recent Entries
+                    </h2>
 
                     {recentEntries.length > 0 ? (
-                        <ul className="recent-entries">
+                        <ul className="space-y-4">
                             {recentEntries.map((entry, index) => (
-                                <li key={index} className="recent-entry">
-                                    <div className="entry-info">
-                                        <div className="entry-medicine">{entry.medicine}</div>
-                                        <div className="entry-batch">Batch: {entry.batch}</div>
+                                <li key={index} className="flex justify-between items-start p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 animate-fadeIn">
+                                    <div className="space-y-1">
+                                        <div className="font-medium text-slate-900 dark:text-white">{entry.medicine}</div>
+                                        <div className="flex flex-wrap gap-2 text-xs">
+                                            <span className="px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                                                Batch: {entry.batch}
+                                            </span>
+                                            {entry.rack && (
+                                                <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                                                    📍 {entry.rack}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className="entry-quantity">+{entry.quantity}</span>
-                                    <span className="entry-time">{entry.timestamp}</span>
+                                    <div className="text-right">
+                                        <div className="font-bold text-green-600">+ {entry.quantity}</div>
+                                        <div className="text-xs text-slate-400 mt-1">{entry.timestamp}</div>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <div className="empty-state">
-                            <p>No entries yet</p>
-                            <p>Your stock entries will appear here</p>
+                        <div className="text-center py-12 text-slate-400 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">post_add</span>
+                            <p>No recent entries</p>
+                            <p className="text-sm opacity-75">Added stock will appear here</p>
                         </div>
                     )}
                 </div>

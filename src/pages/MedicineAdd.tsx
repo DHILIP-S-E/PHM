@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
+import { useMasterData } from '../contexts/MasterDataContext';
+import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect } from '../components/MasterSelect';
 
 export default function MedicineAdd() {
     const navigate = useNavigate();
@@ -27,6 +29,7 @@ export default function MedicineAdd() {
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { isLoading: mastersLoading } = useMasterData();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -49,21 +52,7 @@ export default function MedicineAdd() {
         }
     };
 
-    const categories = [
-        'Antibiotics', 'Analgesics', 'Antacids', 'Antihistamines', 'Antidiabetics',
-        'Cardiovascular', 'Dermatology', 'Gastrointestinal', 'Respiratory', 'Vitamins & Supplements', 'Other'
-    ];
 
-    const medicineTypes = [
-        { value: 'tablet', label: 'Tablet' },
-        { value: 'capsule', label: 'Capsule' },
-        { value: 'syrup', label: 'Syrup' },
-        { value: 'injection', label: 'Injection' },
-        { value: 'cream', label: 'Cream/Ointment' },
-        { value: 'drops', label: 'Drops' },
-        { value: 'powder', label: 'Powder' },
-        { value: 'inhaler', label: 'Inhaler' },
-    ];
 
     return (
         <div className="max-w-4xl mx-auto animate-fadeIn">
@@ -154,31 +143,22 @@ export default function MedicineAdd() {
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Category *
                                     </label>
-                                    <select
+                                    <CategorySelect
                                         value={formData.category}
-                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                        onChange={(val) => setFormData({ ...formData, category: val })}
                                         required
-                                    >
-                                        <option value="">Select Category</option>
-                                        {categories.map(cat => (
-                                            <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                    </select>
+                                        disabled={mastersLoading}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Medicine Type
                                     </label>
-                                    <select
+                                    <MedicineTypeSelect
                                         value={formData.medicine_type}
-                                        onChange={(e) => setFormData({ ...formData, medicine_type: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    >
-                                        {medicineTypes.map(type => (
-                                            <option key={type.value} value={type.value}>{type.label}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, medicine_type: val })}
+                                        disabled={mastersLoading}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -203,18 +183,11 @@ export default function MedicineAdd() {
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Unit
                                     </label>
-                                    <select
+                                    <UnitSelect
                                         value={formData.unit}
-                                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    >
-                                        <option value="Strip">Strip</option>
-                                        <option value="Bottle">Bottle</option>
-                                        <option value="Box">Box</option>
-                                        <option value="Tube">Tube</option>
-                                        <option value="Vial">Vial</option>
-                                        <option value="Piece">Piece</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, unit: val })}
+                                        disabled={mastersLoading}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -278,17 +251,11 @@ export default function MedicineAdd() {
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         GST Rate (%)
                                     </label>
-                                    <select
+                                    <GSTSlabSelect
                                         value={formData.gst_rate}
-                                        onChange={(e) => setFormData({ ...formData, gst_rate: parseInt(e.target.value) })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    >
-                                        <option value={0}>0%</option>
-                                        <option value={5}>5%</option>
-                                        <option value={12}>12%</option>
-                                        <option value={18}>18%</option>
-                                        <option value={28}>28%</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, gst_rate: val })}
+                                        disabled={mastersLoading}
+                                    />
                                 </div>
                             </div>
                         </div>

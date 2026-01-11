@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { usersApi, warehousesApi, shopsApi } from '../services/api';
+import { usersApi, warehousesApi, shopsApi, rolesApi } from '../services/api';
 
 interface User {
     id: string;
@@ -25,7 +25,7 @@ export default function UsersList() {
         email: '',
         full_name: '',
         phone: '',
-        role: 'pharmacist',
+        role: '',
         password: '',
         assigned_warehouse_id: '',
         assigned_shop_id: '',
@@ -34,6 +34,7 @@ export default function UsersList() {
     // Entity lists for assignment
     const [warehouses, setWarehouses] = useState<{ id: string, name: string }[]>([]);
     const [shops, setShops] = useState<{ id: string, name: string }[]>([]);
+    const [assignableRoles, setAssignableRoles] = useState<{ id: string, name: string, entity_type: string | null }[]>([]);
 
     useEffect(() => {
         fetchUsers();
@@ -42,14 +43,20 @@ export default function UsersList() {
 
     const fetchEntities = async () => {
         try {
-            const [warehouseRes, shopRes] = await Promise.all([
+            const [warehouseRes, shopRes, rolesRes] = await Promise.all([
                 warehousesApi.list(),
-                shopsApi.list()
+                shopsApi.list(),
+                rolesApi.listAssignable()
             ]);
             setWarehouses(warehouseRes.data?.items || warehouseRes.data || []);
             setShops(shopRes.data?.items || shopRes.data || []);
+            // Backend returns { roles: [...] } for assignable roles
+            const rawRoles = rolesRes.data?.roles || rolesRes.data?.items || (Array.isArray(rolesRes.data) ? rolesRes.data : []);
+            // STRICTLY FILTER OUT SUPER ADMIN
+            setAssignableRoles(rawRoles.filter((r: any) => r.name !== 'super_admin'));
         } catch (error) {
             console.error('Failed to fetch entities:', error);
+            setAssignableRoles([]); // Ensure it's always an array
         }
     };
 
@@ -72,15 +79,15 @@ export default function UsersList() {
 
     const openCreateModal = () => {
         setEditingUser(null);
-        setFormData({ email: '', full_name: '', phone: '', role: 'pharmacist', password: '', assigned_warehouse_id: '', assigned_shop_id: '' });
+        setFormData({ email: '', full_name: '', phone: '', role: '', password: '', assigned_warehouse_id: '', assigned_shop_id: '' });
         setShowModal(true);
     };
 
     const openEditModal = (user: User) => {
         setEditingUser(user);
         setFormData({
-            email: user.email,
-            full_name: user.full_name,
+            email: user.email || '',
+            full_name: user.full_name || '',
             phone: user.phone || '',
             role: user.role,
             password: '',
@@ -304,7 +311,7 @@ export default function UsersList() {
                                         {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center justify-end gap-1">
                                             <button onClick={() => openEditModal(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="Edit User">
                                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                                             </button>
@@ -364,17 +371,17 @@ export default function UsersList() {
                                     onChange={(e) => setFormData({ ...formData, role: e.target.value, assigned_warehouse_id: '', assigned_shop_id: '' })}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                 >
-                                    <option value="pharmacist">Pharmacist</option>
-                                    <option value="shop_owner">Shop Owner</option>
-                                    <option value="warehouse_admin">Warehouse Admin</option>
-                                    <option value="cashier">Cashier</option>
-                                    <option value="hr_manager">HR Manager</option>
-                                    <option value="accountant">Accountant</option>
+                                    <option value="">Select Role</option>
+                                    {assignableRoles.map(role => (
+                                        <option key={role.id} value={role.name}>
+                                            {role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                        </option>
+                                    ))}
                                 </select>
                                 <p className="text-xs text-slate-500 mt-1">Super Admin cannot be created from UI</p>
                             </div>
                             {/* Entity Assignment based on Role */}
-                            {formData.role === 'warehouse_admin' && (
+                            {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'warehouse' && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                         Assign to Warehouse *
@@ -392,7 +399,7 @@ export default function UsersList() {
                                     </select>
                                 </div>
                             )}
-                            {['pharmacist', 'shop_owner', 'cashier', 'hr_manager', 'accountant'].includes(formData.role) && (
+                            {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'shop' && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                         Assign to Medical Shop *

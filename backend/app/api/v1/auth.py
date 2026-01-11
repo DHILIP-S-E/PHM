@@ -1,11 +1,12 @@
 """
 Authentication API Routes - Login, Logout, Token Refresh, Password Reset
+With Permission-based authorization support
 """
 from fastapi import APIRouter, HTTPException, Depends, Request, Form
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
 import logging
 import secrets
 
@@ -21,10 +22,35 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import User, Session as UserSession, PasswordResetToken, LoginAuditLog
+from app.db.models import User, Session as UserSession, PasswordResetToken, LoginAuditLog, Role, RolePermission, Permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def get_user_permissions(db: Session, user: User) -> List[str]:
+    """
+    Get all permission codes for a user based on their role.
+    This is the source of truth for user permissions.
+    """
+    permissions = []
+    
+    # Try new role_id FK first
+    if user.role_id:
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            for perm in role.permissions:
+                permissions.append(perm.code)
+    
+    # Fallback to legacy role enum if no role_id
+    elif user.role:
+        role_name = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if role:
+            for perm in role.permissions:
+                permissions.append(perm.code)
+    
+    return permissions
 
 
 @router.post("/login", response_model=Token)
@@ -72,13 +98,19 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
     
-    # Create tokens with entity context for RBAC
+    # Get user permissions from their role
+    permissions = get_user_permissions(db, user)
+    role_name = user.role.value if user.role else "user"
+    
+    # Create tokens with permissions and entity context for RBAC
     token_data = {
         "user_id": user.id,
         "sub": user.email,
-        "role": user.role.value if user.role else "user",
-        "warehouse_id": user.assigned_warehouse_id,  # Entity scope
-        "shop_id": user.assigned_shop_id,            # Entity scope
+        "role": role_name,
+        "role_id": user.role_id,
+        "permissions": permissions,  # Include permissions in JWT
+        "warehouse_id": user.assigned_warehouse_id,
+        "shop_id": user.assigned_shop_id,
     }
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
@@ -154,11 +186,19 @@ async def refresh_token(
         if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="User not found or inactive")
         
-        # Create new tokens
+        # Get fresh permissions from DB
+        permissions = get_user_permissions(db, user)
+        role_name = user.role.value if user.role else "user"
+        
+        # Create new tokens with permissions
         token_data = {
             "user_id": user.id,
             "sub": user.email,
-            "role": user.role.value if user.role else "user"
+            "role": role_name,
+            "role_id": user.role_id,
+            "permissions": permissions,
+            "warehouse_id": user.assigned_warehouse_id,
+            "shop_id": user.assigned_shop_id,
         }
         new_access_token = create_access_token(token_data)
         new_refresh_token = create_refresh_token(token_data)
@@ -214,18 +254,32 @@ async def get_current_user_info(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get current authenticated user info with entity scope"""
+    """Get current authenticated user info with permissions and entity scope"""
     user = db.query(User).filter(User.id == current_user["user_id"]).first()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user's permissions from their role
+    permissions = get_user_permissions(db, user)
+    
+    # Get role name (prefer from role relationship)
+    role_name = None
+    if user.role_id:
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            role_name = role.name
+    if not role_name and user.role:
+        role_name = user.role.value if hasattr(user.role, 'value') else str(user.role)
     
     return {
         "id": user.id,
         "email": user.email,
         "full_name": user.full_name,
         "phone": user.phone,
-        "role": user.role.value if user.role else None,
+        "role": role_name,
+        "role_id": user.role_id,
+        "permissions": permissions,  # Include permissions array
         "is_active": user.is_active,
         "email_verified": user.email_verified,
         "last_login": user.last_login,

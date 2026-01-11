@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { employeesApi, shopsApi } from '../services/api';
+import { employeesApi } from '../services/api';
+import { DepartmentSelect, DesignationSelect, ShopSelect, EmploymentTypeSelect, GenderSelect } from '../components/MasterSelect';
 
 interface Employee {
     id: string;
@@ -9,16 +10,13 @@ interface Employee {
     phone: string;
     department: string;
     designation: string;
+    employment_type?: string;
     salary: number;
     status: string;
     shop_id?: string;
     shop_name?: string;
     date_of_joining?: string;
-}
-
-interface Shop {
-    id: string;
-    name: string;
+    gender?: string;
 }
 
 interface EmployeeForm {
@@ -27,11 +25,13 @@ interface EmployeeForm {
     phone: string;
     department: string;
     designation: string;
+    employment_type: string;
     salary: number;
     shop_id: string;
     date_of_joining: string;
     address: string;
     emergency_contact: string;
+    gender: string;
 }
 
 const emptyForm: EmployeeForm = {
@@ -40,16 +40,17 @@ const emptyForm: EmployeeForm = {
     phone: '',
     department: 'pharmacy',
     designation: '',
+    employment_type: 'full_time',
     salary: 0,
     shop_id: '',
     date_of_joining: new Date().toISOString().split('T')[0],
     address: '',
     emergency_contact: '',
+    gender: '',
 };
 
 export default function EmployeesList() {
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [shops, setShops] = useState<Shop[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [deptFilter, setDeptFilter] = useState('');
@@ -66,7 +67,6 @@ export default function EmployeesList() {
 
     useEffect(() => {
         fetchEmployees();
-        fetchShops();
     }, [deptFilter, currentPage]);
 
     const fetchEmployees = async () => {
@@ -84,15 +84,6 @@ export default function EmployeesList() {
             setEmployees([]);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchShops = async () => {
-        try {
-            const response = await shopsApi.list({ size: 100 });
-            setShops(response.data.items || []);
-        } catch (err) {
-            console.error('Failed to fetch shops:', err);
         }
     };
 
@@ -114,11 +105,13 @@ export default function EmployeesList() {
                 phone: data.phone || '',
                 department: data.department || 'pharmacy',
                 designation: data.designation || '',
+                employment_type: data.employment_type || 'full_time',
                 salary: data.salary || 0,
                 shop_id: data.shop_id || '',
                 date_of_joining: data.date_of_joining?.split('T')[0] || '',
                 address: data.address || '',
                 emergency_contact: data.emergency_contact || '',
+                gender: data.gender || '',
             });
             setError('');
             setShowModal(true);
@@ -192,18 +185,14 @@ export default function EmployeesList() {
                             />
                         </div>
                     </div>
-                    <select
-                        value={deptFilter}
-                        onChange={(e) => { setDeptFilter(e.target.value); setCurrentPage(1); }}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                    >
-                        <option value="">All Departments</option>
-                        <option value="sales">Sales</option>
-                        <option value="pharmacy">Pharmacy</option>
-                        <option value="warehouse">Warehouse</option>
-                        <option value="admin">Admin</option>
-                        <option value="hr">HR</option>
-                    </select>
+                    <div className="w-48">
+                        <DepartmentSelect
+                            value={deptFilter}
+                            onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
+                            placeholder="All Departments"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                        />
+                    </div>
                     <button
                         onClick={fetchEmployees}
                         className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
@@ -255,6 +244,9 @@ export default function EmployeesList() {
                                                 <div>
                                                     <p className="font-medium text-slate-900 dark:text-white">{emp.name}</p>
                                                     <p className="text-sm text-slate-500">{emp.phone}</p>
+                                                    {emp.employment_type && (
+                                                        <span className="text-[10px] uppercase font-bold text-slate-400">{emp.employment_type.replace('_', ' ')}</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -384,28 +376,39 @@ export default function EmployeesList() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Department *</label>
-                                        <select
-                                            value={formData.department}
-                                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                                        <EmploymentTypeSelect
+                                            value={formData.employment_type}
+                                            onChange={(val) => setFormData({ ...formData, employment_type: val })}
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
+                                        <GenderSelect
+                                            value={formData.gender}
+                                            onChange={(val) => setFormData({ ...formData, gender: val })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Department *</label>
+                                        <DepartmentSelect
+                                            value={formData.department}
+                                            onChange={(val) => setFormData({ ...formData, department: val })}
                                             required
-                                        >
-                                            <option value="pharmacy">Pharmacy</option>
-                                            <option value="sales">Sales</option>
-                                            <option value="warehouse">Warehouse</option>
-                                            <option value="admin">Admin</option>
-                                            <option value="hr">HR</option>
-                                        </select>
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Designation</label>
-                                        <input
-                                            type="text"
+                                        <DesignationSelect
                                             value={formData.designation}
-                                            onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                                            onChange={(val) => setFormData({ ...formData, designation: val })}
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                            placeholder="e.g., Pharmacist, Sales Executive"
                                         />
                                     </div>
                                 </div>
@@ -422,16 +425,11 @@ export default function EmployeesList() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assigned Shop</label>
-                                        <select
+                                        <ShopSelect
                                             value={formData.shop_id}
-                                            onChange={(e) => setFormData({ ...formData, shop_id: e.target.value })}
+                                            onChange={(val) => setFormData({ ...formData, shop_id: val })}
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        >
-                                            <option value="">Select Shop</option>
-                                            {shops.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     </div>
                                 </div>
 

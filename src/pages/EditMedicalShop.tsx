@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
 import type { MedicalShop } from '../types';
+import { ShopTypeSelect, WarehouseSelect, StatusSelect } from '../components/MasterSelect';
 
 export default function EditMedicalShop() {
     const { id: shopId } = useParams<{ id: string }>();
@@ -20,6 +21,7 @@ export default function EditMedicalShop() {
         city: '',
         state: '',
         pincode: '',
+        warehouse_id: '',
     });
 
     useEffect(() => {
@@ -50,6 +52,7 @@ export default function EditMedicalShop() {
                 state: 'Maharashtra',
                 pincode: '400050',
                 status: 'active',
+                warehouse_id: '',
             });
         } finally {
             setLoading(false);
@@ -143,23 +146,19 @@ export default function EditMedicalShop() {
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">Shop Type</label>
-                                <select
+                                <ShopTypeSelect
                                     value={shop.shop_type || 'retail'}
-                                    onChange={(e) => updateField('shop_type', e.target.value)}
+                                    onChange={(val) => updateField('shop_type', val)}
                                     className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                >
-                                    <option value="retail">Retail Pharmacy</option>
-                                    <option value="hospital">Hospital Pharmacy</option>
-                                    <option value="clinic">Clinic Pharmacy</option>
-                                    <option value="wholesale">Wholesale</option>
-                                </select>
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">Linked Warehouse</label>
-                                <select className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                    <option>Central Warehouse (WH-CENT-001)</option>
-                                    <option>North Region Warehouse (WH-NOR-002)</option>
-                                </select>
+                                <WarehouseSelect
+                                    value={shop.warehouse_id || ''}
+                                    onChange={(val) => updateField('warehouse_id', val)}
+                                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                />
                             </div>
                         </div>
                     </div>
@@ -281,14 +280,14 @@ export default function EditMedicalShop() {
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Shop Status</h3>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-slate-900 dark:text-white">Active</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">Shop is operational</p>
-                                </div>
-                                <button className={`relative w-11 h-6 rounded-full ${shop.status === 'active' ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                    <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${shop.status === 'active' ? 'translate-x-5' : ''}`} />
-                                </button>
+                            <div className="flex flex-col gap-2">
+                                <StatusSelect
+                                    entityType="shop"
+                                    value={shop.status || 'active'}
+                                    onChange={(val) => updateField('status', val)}
+                                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                />
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Current operational status</p>
                             </div>
                             <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Created</p>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { customersApi } from '../services/api';
+import { CustomerTypeSelect, GenderSelect } from '../components/MasterSelect';
 
 interface Customer {
     id: string;
@@ -10,6 +11,8 @@ interface Customer {
     shop_id?: string;
     total_purchases: number;
     last_visit?: string;
+    customer_type?: string;
+    gender?: string;
     created_at: string;
 }
 
@@ -24,6 +27,8 @@ export default function CustomersList() {
         phone: '',
         email: '',
         address: '',
+        customer_type: 'regular',
+        gender: '',
     });
 
     useEffect(() => {
@@ -49,7 +54,7 @@ export default function CustomersList() {
 
     const openCreateModal = () => {
         setEditingCustomer(null);
-        setFormData({ name: '', phone: '', email: '', address: '' });
+        setFormData({ name: '', phone: '', email: '', address: '', customer_type: 'regular', gender: '' });
         setShowModal(true);
     };
 
@@ -60,6 +65,8 @@ export default function CustomersList() {
             phone: customer.phone,
             email: customer.email || '',
             address: customer.address || '',
+            customer_type: customer.customer_type || 'regular',
+            gender: customer.gender || '',
         });
         setShowModal(true);
     };
@@ -141,6 +148,13 @@ export default function CustomersList() {
                                     <div>
                                         <h3 className="font-semibold text-slate-900 dark:text-white">{customer.name}</h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">{customer.phone}</p>
+                                        <div className="flex gap-2 mt-1">
+                                            {customer.customer_type && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-100 dark:border-blue-800 capitalize">
+                                                    {customer.customer_type}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <button onClick={() => openEditModal(customer)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
@@ -175,7 +189,7 @@ export default function CustomersList() {
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md shadow-xl">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md shadow-xl h-auto max-h-[90vh] overflow-y-auto">
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
                             {editingCustomer ? 'Edit Customer' : 'Add Customer'}
                         </h2>
@@ -200,6 +214,26 @@ export default function CustomersList() {
                                     required
                                 />
                             </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                                    <CustomerTypeSelect
+                                        value={formData.customer_type}
+                                        onChange={(val) => setFormData({ ...formData, customer_type: val })}
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
+                                    <GenderSelect
+                                        value={formData.gender}
+                                        onChange={(val) => setFormData({ ...formData, gender: val })}
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    />
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
                                 <input

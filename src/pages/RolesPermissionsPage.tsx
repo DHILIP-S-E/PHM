@@ -1,12 +1,23 @@
 import { useState, useEffect } from 'react';
-import { rolesApi, usersApi } from '../services/api';
+import { rolesApi, usersApi, permissionsApi } from '../services/api';
+
+interface Permission {
+    id: string;
+    code: string;
+    module: string;
+    action: string;
+    scope: string;
+    description: string | null;
+}
 
 interface Role {
     id: string;
     name: string;
     description: string | null;
-    permissions: string[];
-    is_system?: boolean;
+    entity_type: string | null;
+    is_system: boolean;
+    is_creatable: boolean;
+    permissions: Permission[];
     created_at: string;
 }
 
@@ -17,28 +28,9 @@ interface User {
     role: string;
 }
 
-const AVAILABLE_PERMISSIONS = [
-    { key: 'dashboard.view', label: 'View Dashboard', category: 'Dashboard' },
-    { key: 'users.view', label: 'View Users', category: 'Users' },
-    { key: 'users.create', label: 'Create Users', category: 'Users' },
-    { key: 'users.edit', label: 'Edit Users', category: 'Users' },
-    { key: 'users.delete', label: 'Delete Users', category: 'Users' },
-    { key: 'warehouses.view', label: 'View Warehouses', category: 'Warehouses' },
-    { key: 'warehouses.manage', label: 'Manage Warehouses', category: 'Warehouses' },
-    { key: 'shops.view', label: 'View Shops', category: 'Shops' },
-    { key: 'shops.manage', label: 'Manage Shops', category: 'Shops' },
-    { key: 'medicines.view', label: 'View Medicines', category: 'Medicines' },
-    { key: 'medicines.manage', label: 'Manage Medicines', category: 'Medicines' },
-    { key: 'inventory.view', label: 'View Inventory', category: 'Inventory' },
-    { key: 'inventory.manage', label: 'Manage Inventory', category: 'Inventory' },
-    { key: 'reports.view', label: 'View Reports', category: 'Reports' },
-    { key: 'reports.export', label: 'Export Reports', category: 'Reports' },
-    { key: 'settings.view', label: 'View Settings', category: 'Settings' },
-    { key: 'settings.manage', label: 'Manage Settings', category: 'Settings' },
-];
-
 export default function RolesPermissionsPage() {
     const [roles, setRoles] = useState<Role[]>([]);
+    const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -46,7 +38,8 @@ export default function RolesPermissionsPage() {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        permissions: [] as string[]
+        entity_type: '' as string | null,
+        permission_ids: [] as string[]
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -58,14 +51,16 @@ export default function RolesPermissionsPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [rolesRes, usersRes] = await Promise.all([
+            const [rolesRes, permissionsRes, usersRes] = await Promise.all([
                 rolesApi.list(),
+                permissionsApi.list(),
                 usersApi.list({ size: 100 })
             ]);
             setRoles(rolesRes.data.items || []);
+            setAllPermissions(permissionsRes.data.items || []);
             setUsers(usersRes.data.items || []);
         } catch (err) {
-            console.error('Failed to load roles:', err);
+            console.error('Failed to load data:', err);
         } finally {
             setLoading(false);
         }
@@ -73,7 +68,7 @@ export default function RolesPermissionsPage() {
 
     const openCreateModal = () => {
         setEditingRole(null);
-        setFormData({ name: '', description: '', permissions: [] });
+        setFormData({ name: '', description: '', entity_type: null, permission_ids: [] });
         setError('');
         setShowModal(true);
     };
@@ -83,7 +78,8 @@ export default function RolesPermissionsPage() {
         setFormData({
             name: role.name,
             description: role.description || '',
-            permissions: role.permissions || []
+            entity_type: role.entity_type,
+            permission_ids: role.permissions.map(p => p.id)
         });
         setError('');
         setShowModal(true);
@@ -123,12 +119,12 @@ export default function RolesPermissionsPage() {
         }
     };
 
-    const togglePermission = (permission: string) => {
+    const togglePermission = (permissionId: string) => {
         setFormData(prev => ({
             ...prev,
-            permissions: prev.permissions.includes(permission)
-                ? prev.permissions.filter(p => p !== permission)
-                : [...prev.permissions, permission]
+            permission_ids: prev.permission_ids.includes(permissionId)
+                ? prev.permission_ids.filter(id => id !== permissionId)
+                : [...prev.permission_ids, permissionId]
         }));
     };
 
@@ -136,11 +132,21 @@ export default function RolesPermissionsPage() {
         return users.filter(u => u.role === roleName);
     };
 
-    const groupedPermissions = AVAILABLE_PERMISSIONS.reduce((acc, perm) => {
-        if (!acc[perm.category]) acc[perm.category] = [];
-        acc[perm.category].push(perm);
+    // Group permissions by module
+    const groupedPermissions = allPermissions.reduce((acc, perm) => {
+        if (!acc[perm.module]) acc[perm.module] = [];
+        acc[perm.module].push(perm);
         return acc;
-    }, {} as Record<string, typeof AVAILABLE_PERMISSIONS>);
+    }, {} as Record<string, Permission[]>);
+
+    const getScopeColor = (scope: string) => {
+        switch (scope) {
+            case 'global': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+            case 'warehouse': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'shop': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            default: return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+        }
+    };
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -151,7 +157,7 @@ export default function RolesPermissionsPage() {
                         Roles & Permissions
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage user roles and their permissions.
+                        Manage user roles and their permissions. System roles cannot be modified.
                     </p>
                 </div>
                 <button
@@ -164,7 +170,7 @@ export default function RolesPermissionsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -202,6 +208,17 @@ export default function RolesPermissionsPage() {
                         </div>
                     </div>
                 </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-amber-600">key</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{allPermissions.length}</p>
+                            <p className="text-xs text-slate-500">Total Permissions</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Roles Grid */}
@@ -229,8 +246,8 @@ export default function RolesPermissionsPage() {
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${role.is_system
-                                                    ? 'bg-blue-100 dark:bg-blue-900/30'
-                                                    : 'bg-purple-100 dark:bg-purple-900/30'
+                                                ? 'bg-blue-100 dark:bg-blue-900/30'
+                                                : 'bg-purple-100 dark:bg-purple-900/30'
                                                 }`}>
                                                 <span className={`material-symbols-outlined ${role.is_system ? 'text-blue-600' : 'text-purple-600'
                                                     }`}>
@@ -241,9 +258,23 @@ export default function RolesPermissionsPage() {
                                                 <h3 className="font-semibold text-slate-900 dark:text-white capitalize">
                                                     {role.name.replace(/_/g, ' ')}
                                                 </h3>
-                                                {role.is_system && (
-                                                    <span className="text-xs text-blue-600 dark:text-blue-400">System Role</span>
-                                                )}
+                                                <div className="flex gap-1 mt-0.5">
+                                                    {role.is_system && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                                                            System
+                                                        </span>
+                                                    )}
+                                                    {role.entity_type && (
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${getScopeColor(role.entity_type)}`}>
+                                                            {role.entity_type}
+                                                        </span>
+                                                    )}
+                                                    {!role.entity_type && !role.is_system && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                                                            Custom
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         {!role.is_system && (
@@ -282,14 +313,18 @@ export default function RolesPermissionsPage() {
                                     {role.permissions && role.permissions.length > 0 && (
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                                             <div className="flex flex-wrap gap-1">
-                                                {role.permissions.slice(0, 3).map(perm => (
-                                                    <span key={perm} className="px-2 py-0.5 text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-full">
-                                                        {perm.split('.').pop()}
+                                                {role.permissions.slice(0, 4).map(perm => (
+                                                    <span
+                                                        key={perm.id}
+                                                        className={`px-2 py-0.5 text-xs rounded-full ${getScopeColor(perm.scope)}`}
+                                                        title={perm.code}
+                                                    >
+                                                        {perm.action}
                                                     </span>
                                                 ))}
-                                                {role.permissions.length > 3 && (
+                                                {role.permissions.length > 4 && (
                                                     <span className="px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-full">
-                                                        +{role.permissions.length - 3} more
+                                                        +{role.permissions.length - 4} more
                                                     </span>
                                                 )}
                                             </div>
@@ -305,11 +340,16 @@ export default function RolesPermissionsPage() {
             {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-scaleIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-scaleIn">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {editingRole ? 'Edit Role' : 'Create New Role'}
                             </h2>
+                            {editingRole?.is_system && (
+                                <p className="text-sm text-amber-600 mt-1">
+                                    ⚠️ System roles have limited editing options
+                                </p>
+                            )}
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
@@ -319,17 +359,35 @@ export default function RolesPermissionsPage() {
                                 </div>
                             )}
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    Role Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="e.g., Sales Manager"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Role Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="e.g., Sales Manager"
+                                        disabled={editingRole?.is_system}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Entity Type
+                                    </label>
+                                    <select
+                                        value={formData.entity_type || ''}
+                                        onChange={(e) => setFormData({ ...formData, entity_type: e.target.value || null })}
+                                        disabled={editingRole?.is_system}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                                    >
+                                        <option value="">None (Global)</option>
+                                        <option value="warehouse">Warehouse</option>
+                                        <option value="shop">Shop</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div>
@@ -340,29 +398,44 @@ export default function RolesPermissionsPage() {
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     placeholder="Brief description of this role..."
-                                    rows={3}
+                                    rows={2}
                                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                                    Permissions
+                                    Permissions ({formData.permission_ids.length} selected)
                                 </label>
-                                <div className="space-y-4">
-                                    {Object.entries(groupedPermissions).map(([category, perms]) => (
-                                        <div key={category} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4">
-                                            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">{category}</h4>
+                                <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                                    {Object.entries(groupedPermissions).map(([module, perms]) => (
+                                        <div key={module} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 capitalize">
+                                                    {module.replace(/_/g, ' ')}
+                                                </h4>
+                                                <span className="text-xs text-slate-400">{perms.length} permissions</span>
+                                            </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {perms.map(perm => (
-                                                    <label key={perm.key} className="flex items-center gap-2 cursor-pointer">
+                                                    <label
+                                                        key={perm.id}
+                                                        className="flex items-center gap-2 cursor-pointer group"
+                                                        title={perm.description || perm.code}
+                                                    >
                                                         <input
                                                             type="checkbox"
-                                                            checked={formData.permissions.includes(perm.key)}
-                                                            onChange={() => togglePermission(perm.key)}
+                                                            checked={formData.permission_ids.includes(perm.id)}
+                                                            onChange={() => togglePermission(perm.id)}
+                                                            disabled={editingRole?.is_system && editingRole?.name === 'super_admin'}
                                                             className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                                                         />
-                                                        <span className="text-sm text-slate-600 dark:text-slate-400">{perm.label}</span>
+                                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">
+                                                            {perm.action}
+                                                        </span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${getScopeColor(perm.scope)}`}>
+                                                            {perm.scope}
+                                                        </span>
                                                     </label>
                                                 ))}
                                             </div>
@@ -382,7 +455,7 @@ export default function RolesPermissionsPage() {
                             </button>
                             <button
                                 onClick={handleSubmit}
-                                disabled={saving}
+                                disabled={saving || (editingRole?.is_system && editingRole?.name === 'super_admin')}
                                 className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                                 {saving ? 'Saving...' : editingRole ? 'Update Role' : 'Create Role'}

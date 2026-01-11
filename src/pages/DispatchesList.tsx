@@ -226,7 +226,7 @@ export default function DispatchesList() {
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-500">{new Date(d.dispatch_date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-2 justify-end">
                                             <button
                                                 onClick={() => setSelectedDispatch(d)}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="View Details"

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { shopsApi, warehousesApi } from '../services/api';
+import { shopsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { ShopTypeSelect, WarehouseSelect, StatusSelect } from '../components/MasterSelect';
 
 interface Shop {
     id: string;
@@ -21,10 +22,7 @@ interface Shop {
     warehouse_name?: string;
 }
 
-interface Warehouse {
-    id: string;
-    name: string;
-}
+
 
 interface ShopForm {
     name: string;
@@ -39,6 +37,7 @@ interface ShopForm {
     email: string;
     gst_number: string;
     warehouse_id: string;
+    status?: string;
 }
 
 const emptyForm: ShopForm = {
@@ -54,6 +53,7 @@ const emptyForm: ShopForm = {
     email: '',
     gst_number: '',
     warehouse_id: '',
+    status: 'active',
 };
 
 export default function ShopList() {
@@ -63,7 +63,6 @@ export default function ShopList() {
     const canDelete = userRole === 'super_admin';
 
     const [shops, setShops] = useState<Shop[]>([]);
-    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -80,7 +79,6 @@ export default function ShopList() {
 
     useEffect(() => {
         fetchShops();
-        fetchWarehouses();
     }, [currentPage, search, statusFilter]);
 
     const fetchShops = async () => {
@@ -88,7 +86,7 @@ export default function ShopList() {
             setLoading(true);
             const params: any = { page: currentPage, size: pageSize };
             if (search) params.search = search;
-            if (statusFilter !== 'all') params.status = statusFilter;
+            if (statusFilter !== 'all' && statusFilter) params.status = statusFilter;
 
             const response = await shopsApi.list(params);
             setShops(response.data.items || []);
@@ -98,15 +96,6 @@ export default function ShopList() {
             setShops([]);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchWarehouses = async () => {
-        try {
-            const response = await warehousesApi.list({ size: 100 });
-            setWarehouses(response.data.items || []);
-        } catch (err) {
-            console.error('Failed to fetch warehouses:', err);
         }
     };
 
@@ -210,16 +199,13 @@ export default function ShopList() {
                             />
                         </div>
                     </div>
-                    <select
+                    <StatusSelect
+                        entityType="shop"
                         value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                        onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                         className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                    >
-                        <option value="all">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="suspended">Suspended</option>
-                    </select>
+                        placeholder="All Status"
+                    />
                     <button
                         onClick={fetchShops}
                         className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
@@ -298,7 +284,7 @@ export default function ShopList() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => navigate(`/shops/${shop.id}/edit`)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -398,15 +384,11 @@ export default function ShopList() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shop Type</label>
-                                        <select
+                                        <ShopTypeSelect
                                             value={formData.shop_type}
-                                            onChange={(e) => setFormData({ ...formData, shop_type: e.target.value })}
+                                            onChange={(val) => setFormData({ ...formData, shop_type: val })}
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        >
-                                            <option value="retail">Retail</option>
-                                            <option value="wholesale">Wholesale</option>
-                                            <option value="franchise">Franchise</option>
-                                        </select>
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">License Number *</label>
@@ -422,16 +404,11 @@ export default function ShopList() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Warehouse</label>
-                                    <select
+                                    <WarehouseSelect
                                         value={formData.warehouse_id}
-                                        onChange={(e) => setFormData({ ...formData, warehouse_id: e.target.value })}
+                                        onChange={(val) => setFormData({ ...formData, warehouse_id: val })}
                                         className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                    >
-                                        <option value="">Select Warehouse</option>
-                                        {warehouses.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name}</option>
-                                        ))}
-                                    </select>
+                                    />
                                 </div>
 
                                 <div>
@@ -495,6 +472,17 @@ export default function ShopList() {
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
                                         />
                                     </div>
+                                    {editingShop && (
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+                                            <StatusSelect
+                                                entityType="shop"
+                                                value={formData.status || 'active'}
+                                                onChange={(val) => setFormData({ ...formData, status: val })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -516,8 +504,9 @@ export default function ShopList() {
                             </div>
                         </form>
                     </div>
-                </div>
-            )}
-        </div>
+                </div >
+            )
+            }
+        </div >
     );
 }

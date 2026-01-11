@@ -7,6 +7,8 @@ interface User {
     full_name: string;
     phone?: string;
     role: string;
+    role_id?: string;
+    permissions: string[];  // Permission codes from backend
     is_active: boolean;
     created_at?: string;
     // Entity scope for RBAC
@@ -38,7 +40,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         try {
             const response = await authApi.me();
-            setUser(response.data);
+            // Ensure permissions is always an array
+            const userData = {
+                ...response.data,
+                permissions: response.data.permissions || []
+            };
+            setUser(userData);
         } catch (error) {
             console.error('Failed to fetch user:', error);
             // If token is invalid, clear it

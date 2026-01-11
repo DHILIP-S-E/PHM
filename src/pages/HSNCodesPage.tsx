@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
+import { GSTSlabSelect } from '../components/MasterSelect';
 
 interface HSN {
     id: string;
@@ -14,6 +17,8 @@ interface HSN {
 }
 
 export default function HSNCodesPage() {
+    const { user } = useUser();
+    const navigate = useNavigate();
     const [hsnCodes, setHsnCodes] = useState<HSN[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -24,6 +29,13 @@ export default function HSNCodesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Access Control: Only Super Admin can access
+    useEffect(() => {
+        if (user && user.role !== 'super_admin') {
+            navigate('/');
+        }
+    }, [user, navigate]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -189,7 +201,14 @@ export default function HSNCodesPage() {
                             {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-xl text-red-600 text-sm">{error}</div>}
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">HSN Code *</label><input type="text" value={formData.hsn_code} onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })} placeholder="e.g., 3004" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
-                                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">GST Rate %</label><select value={formData.gst_rate} onChange={(e) => handleGSTChange(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"><option value={0}>0%</option><option value={5}>5%</option><option value={12}>12%</option><option value={18}>18%</option><option value={28}>28%</option></select></div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">GST Rate %</label>
+                                    <GSTSlabSelect
+                                        value={formData.gst_rate}
+                                        onChange={handleGSTChange}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
+                                    />
+                                </div>
                             </div>
                             <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description *</label><input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="e.g., Medicaments" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
                             <div className="grid grid-cols-3 gap-4">

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
 
 interface Unit {
     id: string;
@@ -11,6 +13,8 @@ interface Unit {
 }
 
 export default function UnitsPage() {
+    const { user } = useUser();
+    const navigate = useNavigate();
     const [units, setUnits] = useState<Unit[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -19,6 +23,13 @@ export default function UnitsPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Access Control: Only Super Admin can access
+    useEffect(() => {
+        if (user && user.role !== 'super_admin') {
+            navigate('/');
+        }
+    }, [user, navigate]);
 
     useEffect(() => { loadData(); }, []);
 

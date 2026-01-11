@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { medicinesApi, invoicesApi } from '../services/api';
+import { useMasterData } from '../contexts/MasterDataContext';
 
 interface Medicine {
     id: string;
@@ -23,7 +24,27 @@ interface Invoice {
     created_at: string;
 }
 
+import { useNavigate } from 'react-router-dom';
+import { useOperationalContext } from '../contexts/OperationalContext';
+
 export default function POSBilling() {
+    const navigate = useNavigate();
+    const { activeEntity } = useOperationalContext();
+    const { getMaster } = useMasterData();
+
+    // Enforce Shop Context
+    useEffect(() => {
+        if (!activeEntity || activeEntity.type !== 'shop') {
+            navigate('/');
+        }
+    }, [activeEntity, navigate]);
+
+    // If no context yet (or redirecting), return null (or loading)
+    if (!activeEntity || activeEntity.type !== 'shop') return null;
+
+    const shopId = activeEntity.id;
+
+    const paymentMethods = getMaster('payment_methods');
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [search, setSearch] = useState('');
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -46,7 +67,8 @@ export default function POSBilling() {
 
     const searchMedicines = async () => {
         try {
-            const res = await medicinesApi.list({ search });
+            // Pass shop_id to get specific stock for this shop
+            const res = await medicinesApi.list({ search, shop_id: shopId });
             setMedicines(res.data?.items || res.data || []);
         } catch (e) { console.error(e); }
     };
@@ -101,6 +123,7 @@ export default function POSBilling() {
         setLoading(true);
         try {
             const res = await invoicesApi.create({
+                shop_id: shopId,
                 customer_name: customerName || 'Walk-in Customer',
                 customer_phone: customerPhone,
                 items: cart.map(item => ({
@@ -261,18 +284,22 @@ export default function POSBilling() {
                 <div className="mb-4">
                     <label className="block text-xs font-medium text-slate-500 mb-2">Payment Method</label>
                     <div className="grid grid-cols-3 gap-2">
-                        {['cash', 'card', 'upi'].map(method => (
+                        {paymentMethods.length > 0 ? paymentMethods.map(pm => (
                             <button
-                                key={method}
-                                onClick={() => setPaymentMethod(method)}
-                                className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${paymentMethod === method
+                                key={pm.code}
+                                onClick={() => setPaymentMethod(pm.code)}
+                                className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${paymentMethod === pm.code
                                     ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                                     : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                                     }`}
                             >
-                                {method === 'cash' ? '💵' : method === 'card' ? '💳' : '📱'} {method.toUpperCase()}
+                                {pm.icon || (pm.code === 'cash' ? '💵' : pm.code === 'card' ? '💳' : '📱')} {pm.name}
                             </button>
-                        ))}
+                        )) : (
+                            <div className="col-span-3 text-center py-4 text-slate-400 text-sm">
+                                Loading payment methods...
+                            </div>
+                        )}
                     </div>
                 </div>
 

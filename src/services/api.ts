@@ -137,7 +137,7 @@ export const shopsApi = {
 
 // Medicines API
 export const medicinesApi = {
-    list: (params?: { page?: number; size?: number; search?: string; category?: string; manufacturer?: string }) =>
+    list: (params?: { page?: number; size?: number; search?: string; category?: string; manufacturer?: string; shop_id?: string }) =>
         api.get('/medicines', { params }),
 
     get: (id: string) => api.get(`/medicines/${id}`),
@@ -155,7 +155,7 @@ export const medicinesApi = {
 
 // Inventory API
 export const inventoryApi = {
-    getMovements: (params?: { page?: number; size?: number; location_type?: string; location_id?: string; movement_type?: string }) =>
+    getMovements: (params?: { page?: number; size?: number; location_type?: string; location_id?: string; movement_type?: string; warehouse_id?: string; shop_id?: string }) =>
         api.get('/stock/movements', { params }),
 
     // Stock Entry - creates batch implicitly
@@ -302,7 +302,10 @@ export const settingsApi = {
 
 // Roles API
 export const rolesApi = {
-    list: () => api.get('/roles'),
+    list: (params?: { include_system?: boolean; creatable_only?: boolean }) =>
+        api.get('/roles', { params }),
+
+    listAssignable: () => api.get('/roles/assignable'),
 
     get: (id: string) => api.get(`/roles/${id}`),
 
@@ -312,11 +315,32 @@ export const rolesApi = {
 
     delete: (id: string) => api.delete(`/roles/${id}`),
 
+    addPermission: (roleId: string, permissionId: string) =>
+        api.post(`/roles/${roleId}/permissions/${permissionId}`),
+
+    removePermission: (roleId: string, permissionId: string) =>
+        api.delete(`/roles/${roleId}/permissions/${permissionId}`),
+
     assignToUser: (roleId: string, userId: string) =>
         api.post(`/roles/${roleId}/users/${userId}`),
 
     removeFromUser: (roleId: string, userId: string) =>
         api.delete(`/roles/${roleId}/users/${userId}`),
+};
+
+// Permissions API
+export const permissionsApi = {
+    list: (params?: { module?: string }) => api.get('/permissions', { params }),
+
+    getModules: () => api.get('/permissions/modules'),
+
+    getMy: () => api.get('/permissions/my'),
+
+    get: (id: string) => api.get(`/permissions/${id}`),
+
+    create: (data: any) => api.post('/permissions', data),
+
+    delete: (id: string) => api.delete(`/permissions/${id}`),
 };
 
 // Tax API
@@ -389,4 +413,22 @@ export const mastersApi = {
     deleteHSN: (id: string) => api.delete(`/masters/hsn/${id}`),
 };
 
+// Master Options API (Status, Types, Priorities - Configurable Dropdowns)
+export const masterOptionsApi = {
+    // List all options (optionally filter by category)
+    list: (params?: { category?: string; include_inactive?: boolean }) =>
+        api.get('/master-options', { params }),
 
+    // Get all categories
+    getCategories: () => api.get('/master-options/categories'),
+
+    // Get options for a specific category (optimized for dropdowns)
+    getByCategory: (category: string, includeInactive: boolean = false) =>
+        api.get(`/master-options/by-category/${category}`, { params: { include_inactive: includeInactive } }),
+
+    // CRUD operations
+    get: (id: string) => api.get(`/master-options/${id}`),
+    create: (data: any) => api.post('/master-options', data),
+    update: (id: string, data: any) => api.put(`/master-options/${id}`, data),
+    delete: (id: string) => api.delete(`/master-options/${id}`),
+};

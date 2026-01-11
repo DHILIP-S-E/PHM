@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProvider } from './contexts/UserContext';
+import { PermissionProvider } from './contexts/PermissionContext';
+import { MasterDataProvider } from './contexts/MasterDataContext';
+import { OperationalProvider } from './contexts/OperationalContext';
 import ToastContainer from './components/Toast';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
@@ -36,6 +39,7 @@ import WarehouseEdit from './pages/WarehouseEdit';
 import WarehouseShopMapping from './pages/WarehouseShopMapping';
 import RackMaster from './pages/RackMaster';
 import InventoryOversight from './pages/InventoryOversight';
+import StockAdjustment from './pages/StockAdjustment'; // New page
 import AuditLogsPage from './pages/AuditLogsPage';
 import LoginActivityPage from './pages/LoginActivityPage';
 import RolesPermissionsPage from './pages/RolesPermissionsPage';
@@ -62,108 +66,115 @@ function RoleBasedHome() {
 function App() {
   return (
     <UserProvider>
-      <ToastContainer />
-      <Router>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
+      <PermissionProvider>
+        <MasterDataProvider>
+          <OperationalProvider>
+            <ToastContainer />
+            <Router>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
 
-          {/* Protected routes */}
-          <Route path="/" element={
-            <PrivateRoute>
-              <DashboardLayout />
-            </PrivateRoute>
-          }>
-            <Route index element={<RoleBasedHome />} />
+                {/* Protected routes */}
+                <Route path="/" element={
+                  <PrivateRoute>
+                    <DashboardLayout />
+                  </PrivateRoute>
+                }>
+                  <Route index element={<RoleBasedHome />} />
 
-            {/* Users & Access */}
-            <Route path="users" element={<UsersList />} />
-            <Route path="roles" element={<RolesPermissionsPage />} />
-            <Route path="login-activity" element={<LoginActivityPage />} />
+                  {/* Users & Access */}
+                  <Route path="users" element={<UsersList />} />
+                  <Route path="roles" element={<RolesPermissionsPage />} />
+                  <Route path="login-activity" element={<LoginActivityPage />} />
 
-            {/* Warehouses */}
-            <Route path="warehouses" element={<WarehouseList />} />
-            <Route path="warehouses/add" element={<WarehouseAdd />} />
-            <Route path="warehouses/edit/:id" element={<WarehouseEdit />} />
-            <Route path="warehouses/stock" element={<WarehouseStockEntry />} />
+                  {/* Warehouses */}
+                  <Route path="warehouses" element={<WarehouseList />} />
+                  <Route path="warehouses/add" element={<WarehouseAdd />} />
+                  <Route path="warehouses/edit/:id" element={<WarehouseEdit />} />
+                  <Route path="warehouses/stock" element={<WarehouseStockEntry />} />
 
-            {/* Shops */}
-            <Route path="shops" element={<ShopList />} />
-            <Route path="shops/add" element={<ShopAdd />} />
-            <Route path="shops/:id/edit" element={<EditMedicalShop />} />
+                  {/* Shops */}
+                  <Route path="shops" element={<ShopList />} />
+                  <Route path="shops/add" element={<ShopAdd />} />
+                  <Route path="shops/:id/edit" element={<EditMedicalShop />} />
 
-            {/* Warehouse-Shop Mapping */}
-            <Route path="warehouse-mapping" element={<WarehouseShopMapping />} />
+                  {/* Warehouse-Shop Mapping */}
+                  <Route path="warehouse-mapping" element={<WarehouseShopMapping />} />
 
-            {/* Medicines (Medicine Master) */}
-            <Route path="medicines" element={<MedicineList />} />
-            <Route path="medicines/add" element={<MedicineAdd />} />
-            <Route path="medicines/:id" element={<MedicineDetails />} />
-            <Route path="categories" element={<CategoriesPage />} />
-            <Route path="units" element={<UnitsPage />} />
-            <Route path="hsn" element={<HSNCodesPage />} />
-            <Route path="gst" element={<GSTVATPage />} />
+                  {/* Medicines (Medicine Master) */}
+                  <Route path="medicines" element={<MedicineList />} />
+                  <Route path="medicines/add" element={<MedicineAdd />} />
+                  <Route path="medicines/:id" element={<MedicineDetails />} />
+                  <Route path="categories" element={<CategoriesPage />} />
+                  <Route path="units" element={<UnitsPage />} />
+                  <Route path="hsn" element={<HSNCodesPage />} />
+                  <Route path="gst" element={<GSTVATPage />} />
 
-            {/* Rack Master (Physical storage locations) */}
-            <Route path="racks" element={<RackMaster />} />
-            {/* Note: Batch is NOT a master - it's created implicitly during Stock Entry */}
+                  {/* Rack Master (Physical storage locations) */}
+                  <Route path="racks" element={<RackMaster />} />
+                  {/* Note: Batch is NOT a master - it's created implicitly during Stock Entry */}
 
-            {/* Inventory Oversight (Read-Only for Super Admin) */}
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="inventory-oversight" element={<InventoryOversight />} />
-            <Route path="inventory-oversight/warehouse" element={<InventoryOversight />} />
-            <Route path="inventory-oversight/shop" element={<InventoryOversight />} />
-            <Route path="inventory-oversight/expiry" element={<InventoryOversight />} />
-            <Route path="inventory-oversight/dead-stock" element={<InventoryOversight />} />
+                  {/* Inventory Oversight (Read-Only for Super Admin) */}
+                  <Route path="inventory" element={<InventoryPage />} />
+                  <Route path="inventory/adjust" element={<StockAdjustment />} />
+                  <Route path="inventory-oversight" element={<InventoryOversight />} />
+                  <Route path="inventory-oversight/warehouse" element={<InventoryOversight />} />
+                  <Route path="inventory-oversight/shop" element={<InventoryOversight />} />
+                  <Route path="inventory-oversight/expiry" element={<InventoryOversight />} />
+                  <Route path="inventory-oversight/dead-stock" element={<InventoryOversight />} />
 
-            {/* Supply Chain Analytics */}
-            <Route path="analytics/dispatch" element={<DispatchesList />} /> {/* Placeholder */}
-            <Route path="analytics/demand" element={<SalesReports />} /> {/* Placeholder */}
+                  {/* Supply Chain Analytics */}
+                  <Route path="analytics/dispatch" element={<DispatchesList />} /> {/* Placeholder */}
+                  <Route path="analytics/demand" element={<SalesReports />} /> {/* Placeholder */}
 
-            {/* Customers */}
-            <Route path="customers" element={<CustomersList />} />
+                  {/* Customers */}
+                  <Route path="customers" element={<CustomersList />} />
 
-            {/* Employees & HR */}
-            <Route path="employees" element={<EmployeesList />} />
-            <Route path="employees/attendance" element={<AttendanceManagement />} />
-            <Route path="employees/salary" element={<SalaryManagement />} />
+                  {/* Employees & HR */}
+                  <Route path="employees" element={<EmployeesList />} />
+                  <Route path="employees/attendance" element={<AttendanceManagement />} />
+                  <Route path="employees/salary" element={<SalaryManagement />} />
 
-            {/* Dispatches (Operational) */}
-            <Route path="dispatches" element={<DispatchesList />} />
+                  {/* Dispatches (Operational) */}
+                  <Route path="dispatches" element={<DispatchesList />} />
 
-            {/* Purchase Requests */}
-            <Route path="purchase-requests" element={<PurchaseRequestsList />} />
+                  {/* Purchase Requests */}
+                  <Route path="purchase-requests" element={<PurchaseRequestsList />} />
 
-            {/* Sales & Billing (Operational - Not for Super Admin) */}
-            <Route path="sales" element={<InvoicesList />} />
-            <Route path="sales/pos" element={<POSBilling />} />
-            <Route path="sales/invoices" element={<InvoicesList />} />
-            <Route path="sales/returns" element={<ReturnRefund />} />
+                  {/* Sales & Billing (Operational - Not for Super Admin) */}
+                  <Route path="sales" element={<InvoicesList />} />
+                  <Route path="sales/pos" element={<POSBilling />} />
+                  <Route path="sales/invoices" element={<InvoicesList />} />
+                  <Route path="sales/returns" element={<ReturnRefund />} />
 
-            {/* Reports */}
-            <Route path="reports" element={<SalesReports />} />
-            <Route path="reports/sales" element={<SalesReports />} />
-            <Route path="reports/expiry" element={<ExpiryLossReport />} />
-            <Route path="reports/tax" element={<TaxReports />} />
-            <Route path="reports/inventory-aging" element={<InventoryPage />} /> {/* Placeholder */}
-            <Route path="reports/compliance" element={<SalesReports />} /> {/* Placeholder */}
+                  {/* Reports */}
+                  <Route path="reports" element={<SalesReports />} />
+                  <Route path="reports/sales" element={<SalesReports />} />
+                  <Route path="reports/expiry" element={<ExpiryLossReport />} />
+                  <Route path="reports/tax" element={<TaxReports />} />
+                  <Route path="reports/inventory-aging" element={<InventoryPage />} /> {/* Placeholder */}
+                  <Route path="reports/compliance" element={<SalesReports />} /> {/* Placeholder */}
 
-            {/* Notifications */}
-            <Route path="notifications" element={<NotificationsPage />} />
+                  {/* Notifications */}
+                  <Route path="notifications" element={<NotificationsPage />} />
 
-            {/* System */}
-            <Route path="settings" element={<ApplicationSettings />} />
-            <Route path="settings/application" element={<ApplicationSettings />} />
-            <Route path="settings/system" element={<SystemSettings />} />
-            <Route path="feature-flags" element={<SystemSettings />} /> {/* Placeholder */}
-            <Route path="audit-logs" element={<AuditLogsPage />} />
-            <Route path="backup-restore" element={<SystemSettings />} /> {/* Placeholder */}
-          </Route>
+                  {/* System */}
+                  <Route path="settings" element={<ApplicationSettings />} />
+                  <Route path="settings/application" element={<ApplicationSettings />} />
+                  <Route path="settings/system" element={<SystemSettings />} />
+                  <Route path="feature-flags" element={<SystemSettings />} /> {/* Placeholder */}
+                  <Route path="audit-logs" element={<AuditLogsPage />} />
+                  <Route path="backup-restore" element={<SystemSettings />} /> {/* Placeholder */}
+                </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Router>
+          </OperationalProvider>
+        </MasterDataProvider>
+      </PermissionProvider>
     </UserProvider>
   );
 }

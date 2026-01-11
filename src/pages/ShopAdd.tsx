@@ -1,15 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { shopsApi, warehousesApi } from '../services/api';
-
-interface Warehouse {
-    id: string;
-    name: string;
-}
+import { shopsApi } from '../services/api';
+import { ShopTypeSelect, WarehouseSelect } from '../components/MasterSelect';
 
 export default function ShopAdd() {
     const navigate = useNavigate();
-    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [formData, setFormData] = useState({
         name: '',
         code: '',
@@ -26,19 +21,6 @@ export default function ShopAdd() {
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-
-    useEffect(() => {
-        fetchWarehouses();
-    }, []);
-
-    const fetchWarehouses = async () => {
-        try {
-            const response = await warehousesApi.list({ size: 100 });
-            setWarehouses(response.data.items || []);
-        } catch (err) {
-            console.error('Failed to fetch warehouses:', err);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -133,16 +115,10 @@ export default function ShopAdd() {
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Shop Type
                                     </label>
-                                    <select
+                                    <ShopTypeSelect
                                         value={formData.shop_type}
-                                        onChange={(e) => setFormData({ ...formData, shop_type: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    >
-                                        <option value="retail">Retail Pharmacy</option>
-                                        <option value="wholesale">Wholesale</option>
-                                        <option value="franchise">Franchise</option>
-                                        <option value="hospital">Hospital Pharmacy</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, shop_type: val })}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -173,18 +149,13 @@ export default function ShopAdd() {
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Select Warehouse *
                                 </label>
-                                <select
+                                <WarehouseSelect
                                     value={formData.warehouse_id}
-                                    onChange={(e) => setFormData({ ...formData, warehouse_id: e.target.value })}
+                                    onChange={(val) => setFormData({ ...formData, warehouse_id: val })}
                                     required
                                     className={`w-full px-4 py-2.5 rounded-lg border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all ${!formData.warehouse_id ? 'border-amber-300 dark:border-amber-600' : 'border-slate-200 dark:border-slate-600'
                                         }`}
-                                >
-                                    <option value="">-- Select a Warehouse (Required) --</option>
-                                    {warehouses.map(w => (
-                                        <option key={w.id} value={w.id}>{w.name}</option>
-                                    ))}
-                                </select>
+                                />
                                 {!formData.warehouse_id && (
                                     <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                                         <span className="material-symbols-outlined text-[14px]">warning</span>

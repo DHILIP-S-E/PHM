@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { inventoryApi, warehousesApi } from '../services/api';
+import { inventoryApi } from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
+import { WarehouseSelect } from '../components/MasterSelect';
 
 interface StockMovement {
     id: string;
@@ -14,43 +16,38 @@ interface StockMovement {
     performed_by: string;
 }
 
-interface Warehouse {
-    id: string;
-    name: string;
-}
-
 export default function InventoryPage() {
+    // Operational Context for Super Admin flow
+    const { activeEntity, scope } = useOperationalContext();
+
     const [movements, setMovements] = useState<StockMovement[]>([]);
-    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
-    const [warehouseId, setWarehouseId] = useState('');
+    // Local filter for Super Admin in global scope
+    const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
     const [movementType, setMovementType] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const pageSize = 20;
 
     useEffect(() => {
-        fetchWarehouses();
-    }, []);
-
-    useEffect(() => {
         fetchMovements();
-    }, [currentPage, warehouseId, movementType]);
-
-    const fetchWarehouses = async () => {
-        try {
-            const response = await warehousesApi.list({ size: 100 });
-            setWarehouses(response.data.items || []);
-        } catch (err) {
-            console.error('Failed to fetch warehouses:', err);
-        }
-    };
+    }, [currentPage, selectedWarehouseId, movementType, activeEntity]);
 
     const fetchMovements = async () => {
         try {
             setLoading(true);
             const params: any = { page: currentPage, size: pageSize };
-            if (warehouseId) params.warehouse_id = warehouseId;
+
+            // Enforce Context
+            if (activeEntity?.type === 'warehouse') {
+                params.warehouse_id = activeEntity.id;
+            } else if (activeEntity?.type === 'shop') {
+                params.shop_id = activeEntity.id;
+            } else if (scope === 'global' && selectedWarehouseId) {
+                // If global, allow filtering by selected warehouse
+                params.warehouse_id = selectedWarehouseId;
+            }
+
             if (movementType) params.movement_type = movementType;
 
             const response = await inventoryApi.getMovements(params);
@@ -106,23 +103,32 @@ export default function InventoryPage() {
             <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Inventory Movements</h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    Track stock changes across all locations
+                    Track stock changes {scope === 'global' ? 'across all locations' : activeEntity?.name ? `for ${activeEntity.name}` : ''}
                 </p>
             </div>
 
             {/* Filters */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
                 <div className="flex flex-wrap gap-4">
-                    <select
-                        value={warehouseId}
-                        onChange={(e) => { setWarehouseId(e.target.value); setCurrentPage(1); }}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white min-w-[200px]"
-                    >
-                        <option value="">All Locations</option>
-                        {warehouses.map(w => (
-                            <option key={w.id} value={w.id}>{w.name}</option>
-                        ))}
-                    </select>
+                    {/* Warehouse Selector - ONLY visible to Super Admin in GLOBAL scope */}
+                    {scope === 'global' && (
+                        <WarehouseSelect
+                            value={selectedWarehouseId}
+                            onChange={(val) => { setSelectedWarehouseId(val); setCurrentPage(1); }}
+                            placeholder="All Warehouses"
+                            className="w-[200px]"
+                        />
+                    )}
+
+                    {/* Explicit indicator of current scope if not global */}
+                    {scope !== 'global' && activeEntity && (
+                        <div className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed min-w-[200px] flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px]">
+                                {activeEntity.type === 'warehouse' ? 'warehouse' : 'store'}
+                            </span>
+                            {activeEntity.name}
+                        </div>
+                    )}
 
                     <select
                         value={movementType}

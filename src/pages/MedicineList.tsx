@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect } from '../components/MasterSelect';
 
 interface Medicine {
     id: string;
@@ -300,18 +301,13 @@ export default function MedicineList() {
                             />
                         </div>
                     </div>
-                    <select
-                        value={categoryFilter}
-                        onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                    >
-                        <option value="all">All Categories</option>
-                        <option value="antibiotics">Antibiotics</option>
-                        <option value="painkillers">Painkillers</option>
-                        <option value="vitamins">Vitamins</option>
-                        <option value="cardiac">Cardiac</option>
-                        <option value="diabetes">Diabetes</option>
-                    </select>
+                    <div className="w-[200px]">
+                        <CategorySelect
+                            value={categoryFilter}
+                            onChange={(val) => { setCategoryFilter(val); setCurrentPage(1); }}
+                            placeholder="All Categories"
+                        />
+                    </div>
                     <button
                         onClick={fetchMedicines}
                         className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
@@ -402,7 +398,7 @@ export default function MedicineList() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-center gap-1">
                                                 <Link
                                                     to={`/medicines/${medicine.id}`}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -534,36 +530,17 @@ export default function MedicineList() {
                                 <div className="grid grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
-                                        <select
+                                        <MedicineTypeSelect
                                             value={formData.medicine_type}
-                                            onChange={(e) => setFormData({ ...formData, medicine_type: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        >
-                                            <option value="tablet">Tablet</option>
-                                            <option value="capsule">Capsule</option>
-                                            <option value="syrup">Syrup</option>
-                                            <option value="injection">Injection</option>
-                                            <option value="cream">Cream</option>
-                                            <option value="drops">Drops</option>
-                                            <option value="ointment">Ointment</option>
-                                            <option value="powder">Powder</option>
-                                        </select>
+                                            onChange={(val) => setFormData({ ...formData, medicine_type: val })}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                                        <select
+                                        <CategorySelect
                                             value={formData.category}
-                                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        >
-                                            <option value="">Select Category</option>
-                                            <option value="antibiotics">Antibiotics</option>
-                                            <option value="painkillers">Painkillers</option>
-                                            <option value="vitamins">Vitamins</option>
-                                            <option value="cardiac">Cardiac</option>
-                                            <option value="diabetes">Diabetes</option>
-                                            <option value="general">General</option>
-                                        </select>
+                                            onChange={(val) => setFormData({ ...formData, category: val })}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Strength</label>
@@ -601,22 +578,27 @@ export default function MedicineList() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">GST Rate (%)</label>
-                                        <input
-                                            type="number"
-                                            step="0.1"
+                                        <GSTSlabSelect
                                             value={formData.gst_rate}
-                                            onChange={(e) => setFormData({ ...formData, gst_rate: parseFloat(e.target.value) || 0 })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            onChange={(val) => setFormData({ ...formData, gst_rate: val })}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Pack Size</label>
-                                        <input
-                                            type="number"
-                                            value={formData.pack_size}
-                                            onChange={(e) => setFormData({ ...formData, pack_size: parseInt(e.target.value) || 0 })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        />
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                value={formData.pack_size}
+                                                onChange={(e) => setFormData({ ...formData, pack_size: parseInt(e.target.value) || 0 })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            />
+                                            <div className="w-24">
+                                                <UnitSelect
+                                                    value={formData.unit}
+                                                    onChange={(val) => setFormData({ ...formData, unit: val })}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

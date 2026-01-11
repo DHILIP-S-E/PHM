@@ -1,10 +1,10 @@
 """
 Security utilities for authentication and authorization
-Production-grade Role-Based Entity Authorization
+Production-grade Permission-Based Entity Authorization
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -34,7 +34,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token"""
+    """Create JWT access token with permissions"""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -69,18 +69,68 @@ def decode_token(token: str) -> dict:
 @dataclass
 class AuthContext:
     """
-    Authentication context containing user identity and entity scope.
-    This is the source of truth for authorization decisions.
+    Authentication context containing user identity, permissions, and entity scope.
+    This is the source of truth for all authorization decisions.
+    
+    Permissions are the PRIMARY mechanism for access control.
+    Role names are kept for backward compatibility but should not be used for new code.
     """
     user_id: str
     email: str
-    role: str
+    role: str  # Role name (for backward compatibility)
+    role_id: Optional[str] = None
+    permissions: List[str] = field(default_factory=list)  # Permission codes
     warehouse_id: Optional[str] = None
     shop_id: Optional[str] = None
     
+    # ==================== PERMISSION-BASED CHECKS (PRIMARY) ====================
+    
+    def has_permission(self, permission_code: str) -> bool:
+        """
+        Check if user has a specific permission.
+        This is the PRIMARY method for authorization checks.
+        """
+        return permission_code in self.permissions
+    
+    def has_any_permission(self, permission_codes: List[str]) -> bool:
+        """
+        Check if user has ANY of the listed permissions.
+        Useful for routes that can be accessed by multiple permission types.
+        """
+        return any(p in self.permissions for p in permission_codes)
+    
+    def has_all_permissions(self, permission_codes: List[str]) -> bool:
+        """
+        Check if user has ALL of the listed permissions.
+        Useful for routes that require multiple permissions.
+        """
+        return all(p in self.permissions for p in permission_codes)
+    
+    def has_module_access(self, module: str) -> bool:
+        """
+        Check if user has any permission in a module.
+        Useful for sidebar visibility checks.
+        """
+        return any(p.startswith(f"{module}.") for p in self.permissions)
+    
+    def get_scope_for_permission(self, permission_prefix: str) -> Optional[str]:
+        """
+        Get the scope for a permission prefix.
+        e.g., for prefix "inventory.view", returns "global", "warehouse", or "shop"
+        based on which permission the user has.
+        """
+        for perm in self.permissions:
+            if perm.startswith(permission_prefix):
+                parts = perm.split(".")
+                if len(parts) >= 3:
+                    return parts[2]
+        return None
+    
+    # ==================== ROLE-BASED CHECKS (LEGACY - for backward compatibility) ====================
+    
     @property
     def is_super_admin(self) -> bool:
-        """Check if user is super admin (global access)"""
+        """Check if user is super admin (has all permissions)"""
         return self.role == "super_admin"
     
     @property
@@ -90,31 +140,31 @@ class AuthContext:
     
     @property
     def is_shop_level(self) -> bool:
-        """Check if user is shop-level (shop_owner, pharmacist, cashier)"""
-        return self.role in ["shop_owner", "pharmacist", "cashier"]
+        """Check if user is shop-level role"""
+        return self.role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    
+    # ==================== ENTITY ACCESS CHECKS ====================
     
     def can_access_warehouse(self, warehouse_id: str) -> bool:
         """Check if user can access a specific warehouse"""
         if self.is_super_admin:
             return True
-        if self.is_warehouse_admin:
-            return self.warehouse_id == warehouse_id
-        # Shop-level users access their shop's warehouse
-        # This should be validated at the API level with DB lookup
+        # Check if user has warehouse-scoped permissions and is assigned to this warehouse
+        if self.warehouse_id == warehouse_id:
+            return True
         return False
     
     def can_access_shop(self, shop_id: str) -> bool:
         """Check if user can access a specific shop"""
         if self.is_super_admin:
             return True
-        if self.is_shop_level:
-            return self.shop_id == shop_id
-        # Warehouse admin can access all shops in their warehouse
-        # This should be validated at the API level with DB lookup
+        # Check if user has shop-scoped permissions and is assigned to this shop
+        if self.shop_id == shop_id:
+            return True
         return False
     
     def can_perform_operation(self, operation: str) -> bool:
-        """Check if user can perform a specific operation"""
+        """Check if user can perform a specific operation (legacy)"""
         # Super Admin restrictions
         if self.is_super_admin:
             blocked_ops = ["billing", "pos", "stock_adjust", "dispatch_create"]
@@ -146,6 +196,8 @@ async def get_auth_context(
         user_id=user_id,
         email=payload.get("sub", ""),
         role=payload.get("role", "user"),
+        role_id=payload.get("role_id"),
+        permissions=payload.get("permissions", []),
         warehouse_id=payload.get("warehouse_id"),
         shop_id=payload.get("shop_id")
     )
@@ -161,15 +213,53 @@ async def get_current_user(
         "user_id": auth.user_id,
         "email": auth.email,
         "role": auth.role,
+        "role_id": auth.role_id,
+        "permissions": auth.permissions,
         "warehouse_id": auth.warehouse_id,
         "shop_id": auth.shop_id
     }
 
 
-# ==================== AUTHORIZATION DECORATORS ====================
+# ==================== PERMISSION-BASED AUTHORIZATION ====================
+
+def require_permission(required_permissions: List[str]):
+    """
+    Dependency to require specific permissions.
+    User must have AT LEAST ONE of the listed permissions.
+    
+    Usage:
+        @router.get("/inventory", dependencies=[Depends(require_permission(["inventory.view.global", "inventory.view.warehouse"]))])
+    """
+    async def permission_checker(auth: AuthContext = Depends(get_auth_context)):
+        if not auth.has_any_permission(required_permissions):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission denied. Required: {', '.join(required_permissions)}"
+            )
+        return auth
+    return permission_checker
+
+
+def require_all_permissions(required_permissions: List[str]):
+    """
+    Dependency to require ALL specified permissions.
+    User must have ALL of the listed permissions.
+    """
+    async def permission_checker(auth: AuthContext = Depends(get_auth_context)):
+        if not auth.has_all_permissions(required_permissions):
+            missing = [p for p in required_permissions if p not in auth.permissions]
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permissions: {', '.join(missing)}"
+            )
+        return auth
+    return permission_checker
+
+
+# ==================== LEGACY AUTHORIZATION DECORATORS ====================
 
 def require_role(required_roles: List[str]):
-    """Dependency to require specific roles"""
+    """Dependency to require specific roles (legacy - prefer require_permission)"""
     async def role_checker(auth: AuthContext = Depends(get_auth_context)):
         if auth.role not in required_roles:
             raise HTTPException(
@@ -181,7 +271,7 @@ def require_role(required_roles: List[str]):
 
 
 def require_super_admin():
-    """Dependency to require super_admin role"""
+    """Dependency to require super_admin role (legacy - prefer require_permission)"""
     async def checker(auth: AuthContext = Depends(get_auth_context)):
         if not auth.is_super_admin:
             raise HTTPException(
@@ -238,3 +328,4 @@ def block_super_admin():
             )
         return auth
     return checker
+

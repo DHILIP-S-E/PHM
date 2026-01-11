@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
 
 interface Category {
     id: string;
@@ -11,6 +13,8 @@ interface Category {
 }
 
 export default function CategoriesPage() {
+    const { user } = useUser();
+    const navigate = useNavigate();
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -23,6 +27,13 @@ export default function CategoriesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Access Control: Only Super Admin can access
+    useEffect(() => {
+        if (user && user.role !== 'super_admin') {
+            navigate('/');
+        }
+    }, [user, navigate]);
 
     useEffect(() => {
         loadData();
@@ -244,8 +255,8 @@ export default function CategoriesPage() {
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${category.is_active
-                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                                             }`}>
                                             {category.is_active ? 'Active' : 'Inactive'}
                                         </span>

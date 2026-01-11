@@ -96,6 +96,93 @@ class AttendanceStatus(str, enum.Enum):
 
 # ==================== AUTH MODELS ====================
 
+class Permission(Base):
+    """Database-driven permissions for role-based access control"""
+    __tablename__ = "permissions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(100), unique=True, nullable=False, index=True)  # e.g., "inventory.view.global"
+    module = Column(String(50), nullable=False)  # e.g., "inventory"
+    action = Column(String(50), nullable=False)  # e.g., "view", "create", "edit", "delete"
+    scope = Column(String(20), nullable=False)   # "global" | "warehouse" | "shop"
+    description = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_permission_module', 'module', 'action'),)
+
+
+class Role(Base):
+    """Database-driven roles with permission relationships"""
+    __tablename__ = "roles"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(50), unique=True, nullable=False)
+    description = Column(Text)
+    # Entity type this role is bound to: "warehouse", "shop", or null (for super_admin global access)
+    entity_type = Column(String(20), nullable=True)  # null = global access (super_admin)
+    # System roles cannot be deleted/modified
+    is_system = Column(Boolean, default=False)
+    # Whether this role can be assigned via API (super_admin = False)
+    is_creatable = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Many-to-many relationship with permissions through RolePermission
+    permissions = relationship("Permission", secondary="role_permissions", backref="roles")
+
+
+class RolePermission(Base):
+    """Junction table for Role-Permission many-to-many relationship"""
+    __tablename__ = "role_permissions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    role_id = Column(String(36), ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    permission_id = Column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_role_permission', 'role_id', 'permission_id', unique=True),)
+
+
+class MasterOption(Base):
+    """
+    Flexible master table for configurable option lists.
+    Replaces hardcoded enums for status types, shop types, priority levels, etc.
+    
+    Examples:
+    - category='entity_status', code='active', label='Active'
+    - category='shop_type', code='retail', label='Retail Pharmacy'
+    - category='priority', code='high', label='High Priority'
+    """
+    __tablename__ = "master_options"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    # Category groups related options: 'entity_status', 'shop_type', 'priority', etc.
+    category = Column(String(50), nullable=False, index=True)
+    # Unique code within category: 'active', 'retail', 'high'
+    code = Column(String(50), nullable=False)
+    # Display label: 'Active', 'Retail Pharmacy', 'High Priority'
+    label = Column(String(100), nullable=False)
+    # Optional description
+    description = Column(Text)
+    # Display order within category
+    display_order = Column(Integer, default=0)
+    # Whether this option is currently active
+    is_active = Column(Boolean, default=True)
+    # System options cannot be deleted
+    is_system = Column(Boolean, default=False)
+    # Optional color for UI badges: 'green', 'red', 'blue'
+    color = Column(String(20))
+    # Optional icon for UI
+    icon = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_master_option_category', 'category'),
+        Index('idx_master_option_unique', 'category', 'code', unique=True),
+    )
+
+
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -104,7 +191,10 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(100), nullable=False)
     phone = Column(String(20))
+    # Legacy role field - kept for backward compatibility during migration
     role = Column(SQLEnum(RoleType), default=RoleType.PHARMACIST)
+    # NEW: Foreign key to roles table for database-driven permissions
+    role_id = Column(String(36), ForeignKey("roles.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
     last_login = Column(DateTime)
@@ -122,20 +212,11 @@ class User(Base):
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     assigned_warehouse = relationship("Warehouse", foreign_keys=[assigned_warehouse_id])
     assigned_shop = relationship("MedicalShop", foreign_keys=[assigned_shop_id])
-
-
-class Role(Base):
-    __tablename__ = "roles"
-
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(50), unique=True, nullable=False)
-    description = Column(Text)
-    permissions = Column(Text)  # JSON string of permissions
-    is_system = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    user_role = relationship("Role", foreign_keys=[role_id])
 
 
 class UserRole(Base):
+    """Legacy table - kept for backward compatibility, use Role relationship instead"""
     __tablename__ = "user_roles"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -1226,3 +1307,156 @@ class FileUpload(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index('idx_file_entity', 'entity_type', 'entity_id'),)
+
+
+# ==================== SSOT MASTER TABLES ====================
+# These tables define reusable concepts in ONE place, referenced everywhere.
+# All dropdowns, selections, and filters should load from these masters.
+
+class PaymentMethodMaster(Base):
+    """Payment methods master - Single source for all payment type dropdowns"""
+    __tablename__ = "payment_method_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(20), unique=True, nullable=False, index=True)  # "cash", "card", "upi"
+    name = Column(String(50), nullable=False)  # "Cash", "Credit/Debit Card"
+    icon = Column(String(50))  # Optional: emoji or icon identifier
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ShopTypeMaster(Base):
+    """Shop types master - retail, wholesale, hospital, clinic, etc."""
+    __tablename__ = "shop_type_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomerTypeMaster(Base):
+    """Customer types master - regular, vip, corporate, insurance, etc."""
+    __tablename__ = "customer_type_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    discount_percent = Column(Float, default=0.0)  # Default discount for this type
+    credit_limit = Column(Float, default=0.0)  # Max credit allowed
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MedicineTypeMaster(Base):
+    """Medicine types master - tablet, capsule, syrup, injection, etc."""
+    __tablename__ = "medicine_type_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(20), unique=True, nullable=False, index=True)  # "tablet", "capsule"
+    name = Column(String(50), nullable=False)  # "Tablet", "Capsule"
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GSTSlabMaster(Base):
+    """GST slabs master - 0%, 5%, 12%, 18%, 28%"""
+    __tablename__ = "gst_slab_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    rate = Column(Float, unique=True, nullable=False)  # 0, 5, 12, 18, 28
+    cgst_rate = Column(Float, nullable=False)  # rate / 2
+    sgst_rate = Column(Float, nullable=False)  # rate / 2
+    igst_rate = Column(Float, nullable=False)  # = rate
+    description = Column(String(100))  # e.g., "Standard Rate for Medicines"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GenderMaster(Base):
+    """Gender options master"""
+    __tablename__ = "gender_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(10), unique=True, nullable=False, index=True)
+    name = Column(String(20), nullable=False)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmploymentTypeMaster(Base):
+    """Employment types master - full_time, part_time, contract, intern"""
+    __tablename__ = "employment_type_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UrgencyMaster(Base):
+    """Urgency levels master - low, normal, high, critical"""
+    __tablename__ = "urgency_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    color = Column(String(20))  # For UI styling: "green", "yellow", "red"
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StatusMaster(Base):
+    """Generic status definitions per entity type"""
+    __tablename__ = "status_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    entity_type = Column(String(50), nullable=False, index=True)  # "invoice", "dispatch", "purchase_request"
+    code = Column(String(30), nullable=False)  # "pending", "completed", "cancelled"
+    name = Column(String(50), nullable=False)  # Display name
+    color = Column(String(20))  # For UI styling
+    is_terminal = Column(Boolean, default=False)  # True if this is a final status
+    is_default = Column(Boolean, default=False)  # True if this is the initial status
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('idx_status_entity', 'entity_type', 'code', unique=True),)
+
+
+class DesignationMaster(Base):
+    """Employee designations master"""
+    __tablename__ = "designation_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(30), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    level = Column(Integer, default=1)  # Hierarchy level
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DepartmentMaster(Base):
+    """Departments master - pharmacy, admin, accounts, hr, etc."""
+    __tablename__ = "department_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(30), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)

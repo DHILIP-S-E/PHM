@@ -1,9 +1,9 @@
 """
-Users API Routes - Database Connected
+Users API Routes - Permission-based authorization
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import logging
 
@@ -12,12 +12,29 @@ from app.models.auth import (
     RoleCreate, RoleResponse, AssignRoleRequest, RoleType
 )
 from app.models.common import APIResponse
-from app.core.security import get_current_user, require_role, get_password_hash
+from app.core.security import (
+    get_current_user, require_role, require_permission, get_password_hash
+)
 from app.db.database import get_db
-from app.db.models import User, Role, UserRole
+from app.db.models import User, Role, UserRole, Permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def get_user_permissions(db: Session, user: User) -> List[str]:
+    """Get permission codes for a user based on their role"""
+    permissions = []
+    if user.role_id:
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            permissions = [p.code for p in role.permissions]
+    elif user.role:
+        role_name = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if role:
+            permissions = [p.code for p in role.permissions]
+    return permissions
 
 
 @router.get("")
@@ -75,30 +92,46 @@ async def list_users(
 async def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["super_admin"]))
+    current_user: dict = Depends(require_permission(["users.create"]))
 ):
-    """Create a new user"""
+    """Create a new user with permission-based role assignment"""
     logger.info(f"Creating user with data: {user_data.model_dump()}")
     
-    # SECURITY: Block super_admin creation from API
-    if user_data.role == RoleType.SUPER_ADMIN:
-        raise HTTPException(
-            status_code=403,
-            detail="Super Admin cannot be created through the API. Contact system administrator."
-        )
+    # Determine the role to assign
+    role = None
+    if user_data.role_id:
+        # New permission-based approach: use role_id
+        role = db.query(Role).filter(Role.id == user_data.role_id).first()
+        if not role:
+            raise HTTPException(status_code=400, detail="Invalid role_id")
+        if not role.is_creatable:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Role '{role.name}' cannot be assigned via API. Contact system administrator."
+            )
+    elif user_data.role:
+        # Legacy approach: use role enum
+        if user_data.role == RoleType.SUPER_ADMIN:
+            raise HTTPException(
+                status_code=403,
+                detail="Super Admin cannot be created through the API. Contact system administrator."
+            )
+        # Find or validate the role exists in DB
+        role_name = user_data.role.value if hasattr(user_data.role, 'value') else str(user_data.role)
+        role = db.query(Role).filter(Role.name == role_name).first()
     
-    # Validate entity assignment based on role
-    if user_data.role == RoleType.WAREHOUSE_ADMIN:
+    # Validate entity assignment based on role entity_type
+    if role and role.entity_type == "warehouse":
         if not user_data.assigned_warehouse_id:
             raise HTTPException(
                 status_code=400,
-                detail="Warehouse Admin must be assigned to a warehouse"
+                detail=f"Role '{role.name}' requires assignment to a warehouse"
             )
-    elif user_data.role in [RoleType.SHOP_OWNER, RoleType.PHARMACIST, RoleType.CASHIER, RoleType.HR_MANAGER, RoleType.ACCOUNTANT]:
+    elif role and role.entity_type == "shop":
         if not user_data.assigned_shop_id:
             raise HTTPException(
                 status_code=400,
-                detail=f"{user_data.role.value} must be assigned to a medical shop"
+                detail=f"Role '{role.name}' requires assignment to a medical shop"
             )
     
     # Check if email exists
@@ -111,8 +144,8 @@ async def create_user(
         password_hash=get_password_hash(user_data.password),
         full_name=user_data.full_name,
         phone=user_data.phone,
-        role=user_data.role,
-        # Convert empty strings to None for foreign key fields
+        role=user_data.role if user_data.role else None,  # Legacy
+        role_id=role.id if role else None,  # New FK
         assigned_warehouse_id=user_data.assigned_warehouse_id if user_data.assigned_warehouse_id else None,
         assigned_shop_id=user_data.assigned_shop_id if user_data.assigned_shop_id else None,
         is_active=True
@@ -128,7 +161,8 @@ async def create_user(
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
-            "role": user.role.value
+            "role": role.name if role else None,
+            "role_id": user.role_id
         }
     )
 

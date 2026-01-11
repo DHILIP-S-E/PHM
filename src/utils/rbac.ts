@@ -1,83 +1,26 @@
 /**
- * Role-Based Access Control Utilities
+ * Role-Based Access Control Utilities (LEGACY COMPATIBILITY LAYER)
+ * 
+ * NOTE: This file is maintained for backward compatibility.
+ * New code should use usePermissions() hook from PermissionContext.
+ * 
+ * @deprecated Use usePermissions(), useHasPermission(), or PermissionGate instead.
  */
-
-export const Permissions = {
-    // Warehouses
-    WAREHOUSE_CREATE: ['super_admin', 'warehouse_admin'],
-    WAREHOUSE_UPDATE: ['super_admin', 'warehouse_admin'],
-    WAREHOUSE_DELETE: ['super_admin'],
-    WAREHOUSE_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner', 'pharmacist'],
-
-    // Shops
-    SHOP_CREATE: ['super_admin', 'warehouse_admin'],
-    SHOP_UPDATE: ['super_admin', 'warehouse_admin', 'shop_owner'],
-    SHOP_DELETE: ['super_admin'],
-    SHOP_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner', 'pharmacist'],
-
-    // Medicines
-    MEDICINE_CREATE: ['super_admin', 'warehouse_admin'],
-    MEDICINE_UPDATE: ['super_admin', 'warehouse_admin'],
-    MEDICINE_DELETE: ['super_admin'],
-    MEDICINE_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner', 'pharmacist', 'cashier'],
-
-    // Users
-    USER_CREATE: ['super_admin'],
-    USER_UPDATE: ['super_admin'],
-    USER_DELETE: ['super_admin'],
-    USER_VIEW: ['super_admin'],
-
-    // Employees
-    EMPLOYEE_CREATE: ['super_admin', 'hr_manager'],
-    EMPLOYEE_UPDATE: ['super_admin', 'hr_manager'],
-    EMPLOYEE_DELETE: ['super_admin', 'hr_manager'],
-    EMPLOYEE_VIEW: ['super_admin', 'hr_manager', 'shop_owner'],
-
-    // Customers
-    CUSTOMER_CREATE: ['super_admin', 'shop_owner', 'pharmacist', 'cashier'],
-    CUSTOMER_UPDATE: ['super_admin', 'shop_owner', 'pharmacist'],
-    CUSTOMER_DELETE: ['super_admin', 'shop_owner'],
-    CUSTOMER_VIEW: ['super_admin', 'shop_owner', 'pharmacist', 'cashier'],
-
-    // Invoices/Sales
-    INVOICE_CREATE: ['shop_owner', 'pharmacist', 'cashier'],
-    INVOICE_UPDATE: ['shop_owner', 'pharmacist'],
-    INVOICE_DELETE: ['shop_owner', 'pharmacist'],
-    INVOICE_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner', 'pharmacist', 'cashier'],
-
-    // Purchase Requests
-    PURCHASE_REQUEST_CREATE: ['shop_owner', 'pharmacist'],
-    PURCHASE_REQUEST_APPROVE: ['super_admin', 'warehouse_admin'],
-    PURCHASE_REQUEST_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner', 'pharmacist'],
-
-    // Dispatches
-    DISPATCH_CREATE: ['super_admin', 'warehouse_admin'],
-    DISPATCH_UPDATE: ['super_admin', 'warehouse_admin'],
-    DISPATCH_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner'],
-
-    // Inventory
-    INVENTORY_UPDATE: ['super_admin', 'warehouse_admin'],
-    INVENTORY_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner', 'pharmacist'],
-
-    // Settings
-    SETTINGS_UPDATE: ['super_admin'],
-    SETTINGS_VIEW: ['super_admin'],
-
-    // Reports
-    REPORTS_VIEW: ['super_admin', 'warehouse_admin', 'shop_owner'],
-} as const;
-
-export type PermissionKey = keyof typeof Permissions;
 
 /**
- * Check if user has permission for an action
+ * @deprecated Use usePermissions().hasAnyPermission() instead
+ * Check if user has permission (legacy role-based check)
  */
-export const hasPermission = (userRole: string | undefined | null, permission: PermissionKey): boolean => {
+export const hasPermission = (userRole: string | undefined | null, _permissionKey: string): boolean => {
+    console.warn('hasPermission from rbac.ts is deprecated. Use usePermissions() hook instead.');
     if (!userRole) return false;
-    return (Permissions[permission] as readonly string[]).includes(userRole);
+    // Super admin has all permissions
+    if (userRole === 'super_admin') return true;
+    return false; // For other roles, use the new permission system
 };
 
 /**
+ * @deprecated Use new permission-based checks
  * Check if user has any of the specified roles
  */
 export const hasRole = (userRole: string | undefined | null, roles: string[]): boolean => {
@@ -87,15 +30,30 @@ export const hasRole = (userRole: string | undefined | null, roles: string[]): b
 
 /**
  * Get user-friendly role name
+ * This is still useful for display purposes
  */
 export const getRoleName = (role: string): string => {
-    const roleNames: Record<string, string> = {
-        super_admin: 'Super Admin',
-        warehouse_admin: 'Warehouse Admin',
-        shop_owner: 'Shop Owner',
-        pharmacist: 'Pharmacist',
-        cashier: 'Cashier',
-        hr_manager: 'HR Manager',
+    // Convert role code to readable name
+    // e.g., "warehouse_admin" -> "Warehouse Admin"
+    return role
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+};
+
+/**
+ * Get role badge color for UI
+ */
+export const getRoleBadgeColor = (role: string): string => {
+    const roleColors: Record<string, string> = {
+        super_admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+        warehouse_admin: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        warehouse_employee: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+        pharmacy_admin: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+        pharmacy_employee: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+        shop_owner: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+        pharmacist: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+        cashier: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
     };
-    return roleNames[role] || role;
+    return roleColors[role] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
 };

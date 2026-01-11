@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { purchaseRequestsApi, shopsApi, warehousesApi, medicinesApi } from '../services/api';
+import { purchaseRequestsApi, medicinesApi } from '../services/api';
+import { ShopSelect, WarehouseSelect, UrgencySelect } from '../components/MasterSelect';
 
 interface PurchaseRequest {
     id: string;
@@ -18,8 +19,6 @@ export default function PurchaseRequestsList() {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [shops, setShops] = useState<any[]>([]);
-    const [warehouses, setWarehouses] = useState<any[]>([]);
     const [medicines, setMedicines] = useState<any[]>([]);
     const [creating, setCreating] = useState(false);
     const [newRequest, setNewRequest] = useState({
@@ -33,13 +32,7 @@ export default function PurchaseRequestsList() {
 
     useEffect(() => {
         if (showCreateModal) {
-            Promise.all([
-                shopsApi.list({ size: 100 }),
-                warehousesApi.list({ size: 100 }),
-                medicinesApi.list({ size: 100 })
-            ]).then(([shopRes, warehouseRes, medRes]) => {
-                setShops(shopRes.data?.items || shopRes.data || []);
-                setWarehouses(warehouseRes.data?.items || warehouseRes.data || []);
+            medicinesApi.list({ size: 100 }).then(medRes => {
                 setMedicines(medRes.data?.items || medRes.data || []);
             });
         }
@@ -242,39 +235,28 @@ export default function PurchaseRequestsList() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shop *</label>
-                                    <select
+                                    <ShopSelect
                                         value={newRequest.shop_id}
-                                        onChange={(e) => setNewRequest(prev => ({ ...prev, shop_id: e.target.value }))}
+                                        onChange={(val) => setNewRequest(prev => ({ ...prev, shop_id: val }))}
                                         className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
-                                    >
-                                        <option value="">Select Shop</option>
-                                        {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Warehouse *</label>
-                                    <select
+                                    <WarehouseSelect
                                         value={newRequest.warehouse_id}
-                                        onChange={(e) => setNewRequest(prev => ({ ...prev, warehouse_id: e.target.value }))}
+                                        onChange={(val) => setNewRequest(prev => ({ ...prev, warehouse_id: val }))}
                                         className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
-                                    >
-                                        <option value="">Select Warehouse</option>
-                                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                    </select>
+                                    />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-                                <select
+                                <UrgencySelect
                                     value={newRequest.priority}
-                                    onChange={(e) => setNewRequest(prev => ({ ...prev, priority: e.target.value }))}
+                                    onChange={(val) => setNewRequest(prev => ({ ...prev, priority: val }))}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
-                                >
-                                    <option value="low">Low</option>
-                                    <option value="normal">Normal</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                </select>
+                                />
                             </div>
                             <div>
                                 <div className="flex justify-between items-center mb-2">

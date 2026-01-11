@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { taxApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 
 interface TaxSettings {
     enable_gst: boolean;
@@ -14,6 +17,10 @@ interface TaxSettings {
 }
 
 export default function GSTVATPage() {
+    const { user } = useUser();
+    const navigate = useNavigate();
+    const { getMaster } = useMasterData();
+    const gstSlabs = getMaster('gst_slabs');
     const [settings, setSettings] = useState<TaxSettings>({
         enable_gst: true, default_gst_rate: 12, enable_vat: false, default_vat_rate: 5,
         tax_inclusive_pricing: false, round_off_tax: true, gst_number: '', business_name: '', business_address: ''
@@ -21,6 +28,13 @@ export default function GSTVATPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+
+    // Access Control: Only Super Admin can access
+    useEffect(() => {
+        if (user && user.role !== 'super_admin') {
+            navigate('/');
+        }
+    }, [user, navigate]);
 
     useEffect(() => { loadSettings(); }, []);
 
@@ -50,7 +64,7 @@ export default function GSTVATPage() {
         }
     };
 
-    const gstRates = [0, 5, 12, 18, 28];
+
 
     if (loading) {
         return (
@@ -104,11 +118,13 @@ export default function GSTVATPage() {
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Default GST Rate</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {gstRates.map(rate => (
-                                        <button key={rate} onClick={() => setSettings({ ...settings, default_gst_rate: rate })} className={`px-4 py-2 rounded-xl font-medium transition-all ${settings.default_gst_rate === rate ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'}`}>
-                                            {rate}%
+                                    {gstSlabs.length > 0 ? gstSlabs.map(slab => (
+                                        <button key={slab.id} onClick={() => setSettings({ ...settings, default_gst_rate: slab.rate })} className={`px-4 py-2 rounded-xl font-medium transition-all ${settings.default_gst_rate === slab.rate ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'}`}>
+                                            {slab.rate}%
                                         </button>
-                                    ))}
+                                    )) : (
+                                        <div className="text-sm text-slate-500 italic">No GST slabs found. Check master data.</div>
+                                    )}
                                 </div>
                             </div>
 
