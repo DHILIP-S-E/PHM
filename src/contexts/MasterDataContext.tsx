@@ -139,6 +139,23 @@ export interface AdjustmentReasonItem extends MasterItem {
     description?: string;
 }
 
+export interface BrandItem extends MasterItem {
+    description?: string;
+}
+
+export interface ManufacturerItem {
+    id: string;
+    code: string;
+    name: string;
+    address?: string;
+    contact_person?: string;
+    phone?: string;
+    email?: string;
+    website?: string;
+    is_active: boolean;
+    sort_order?: number;
+}
+
 export interface AllMasterData {
     categories: CategoryItem[];
     units: UnitItem[];
@@ -160,6 +177,8 @@ export interface AllMasterData {
     racks: RackItem[];
     suppliers: SupplierItem[];
     adjustment_reasons: AdjustmentReasonItem[];
+    brands: BrandItem[];
+    manufacturers: ManufacturerItem[];
 }
 
 // ==================== CONTEXT DEFINITION ====================

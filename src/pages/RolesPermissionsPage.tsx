@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { rolesApi, usersApi, permissionsApi } from '../services/api';
+import { usePermissions } from '../contexts/PermissionContext';
+import { PERMISSIONS } from '../types/permissions';
 
 interface Permission {
     id: string;
@@ -29,6 +31,10 @@ interface User {
 }
 
 export default function RolesPermissionsPage() {
+    const { hasPermission } = usePermissions();
+    const canView = hasPermission(PERMISSIONS.ROLES_VIEW);
+    const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE);
+
     const [roles, setRoles] = useState<Role[]>([]);
     const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
     const [users, setUsers] = useState<User[]>([]);
@@ -45,8 +51,12 @@ export default function RolesPermissionsPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        loadData();
-    }, []);
+        if (canView) {
+            loadData();
+        } else {
+            setLoading(false);
+        }
+    }, [canView]);
 
     const loadData = async () => {
         setLoading(true);
@@ -148,6 +158,24 @@ export default function RolesPermissionsPage() {
         }
     };
 
+    // Access denied if user doesn't have view permission
+    if (!canView) {
+        return (
+            <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
+                    <span className="material-symbols-outlined text-6xl text-red-500 mb-4">block</span>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Access Denied</h2>
+                    <p className="text-slate-600 dark:text-slate-400">
+                        You don't have permission to view roles and permissions.
+                    </p>
+                    <p className="text-sm text-slate-500 dark:text-slate-500 mt-2">
+                        Contact your administrator if you need access.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
             {/* Header */}
@@ -160,13 +188,15 @@ export default function RolesPermissionsPage() {
                         Manage user roles and their permissions. System roles cannot be modified.
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    Create Role
-                </button>
+                {canManage && (
+                    <button
+                        onClick={openCreateModal}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        Create Role
+                    </button>
+                )}
             </div>
 
             {/* Stats */}
@@ -277,7 +307,7 @@ export default function RolesPermissionsPage() {
                                                 </div>
                                             </div>
                                         </div>
-                                        {!role.is_system && (
+                                        {!role.is_system && canManage && (
                                             <div className="flex gap-1">
                                                 <button
                                                     onClick={() => openEditModal(role)}

@@ -89,28 +89,44 @@ class AuthContext:
         """
         Check if user has a specific permission.
         This is the PRIMARY method for authorization checks.
+        Super Admin always has all permissions.
         """
+        # Super Admin bypasses all permission checks
+        if self.role == "super_admin":
+            return True
         return permission_code in self.permissions
     
     def has_any_permission(self, permission_codes: List[str]) -> bool:
         """
         Check if user has ANY of the listed permissions.
         Useful for routes that can be accessed by multiple permission types.
+        Super Admin always has all permissions.
         """
+        # Super Admin bypasses all permission checks
+        if self.role == "super_admin":
+            return True
         return any(p in self.permissions for p in permission_codes)
     
     def has_all_permissions(self, permission_codes: List[str]) -> bool:
         """
         Check if user has ALL of the listed permissions.
         Useful for routes that require multiple permissions.
+        Super Admin always has all permissions.
         """
+        # Super Admin bypasses all permission checks
+        if self.role == "super_admin":
+            return True
         return all(p in self.permissions for p in permission_codes)
     
     def has_module_access(self, module: str) -> bool:
         """
         Check if user has any permission in a module.
         Useful for sidebar visibility checks.
+        Super Admin always has access to all modules.
         """
+        # Super Admin bypasses all permission checks
+        if self.role == "super_admin":
+            return True
         return any(p.startswith(f"{module}.") for p in self.permissions)
     
     def get_scope_for_permission(self, permission_prefix: str) -> Optional[str]:
@@ -118,7 +134,11 @@ class AuthContext:
         Get the scope for a permission prefix.
         e.g., for prefix "inventory.view", returns "global", "warehouse", or "shop"
         based on which permission the user has.
+        Super Admin always has global scope.
         """
+        # Super Admin has global scope for everything
+        if self.role == "super_admin":
+            return "global"
         for perm in self.permissions:
             if perm.startswith(permission_prefix):
                 parts = perm.split(".")

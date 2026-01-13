@@ -34,11 +34,11 @@ class MedicineCategory(str, Enum):
 
 class MedicineBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
-    generic_name: str
+    generic_name: Optional[str] = None  # Made optional
     brand: Optional[str] = None
-    manufacturer: str
-    medicine_type: MedicineType = MedicineType.TABLET
-    category: MedicineCategory = MedicineCategory.OTHER
+    manufacturer: Optional[str] = None  # Made optional
+    medicine_type: str = "tablet"  # Changed from enum to string (from master data)
+    category: str = ""  # Changed from enum to string (from master data)
     composition: Optional[str] = None
     strength: Optional[str] = None
     unit: str = "strip"
@@ -46,13 +46,13 @@ class MedicineBase(BaseModel):
     hsn_code: Optional[str] = None
     gst_rate: float = 12.0
     mrp: float = Field(gt=0)
-    purchase_price: float = Field(gt=0)
+    purchase_price: float = Field(ge=0, default=0)  # Allow 0
     is_prescription_required: bool = False
     is_controlled: bool = False
     storage_conditions: Optional[str] = None
     is_active: bool = True
-    rack_number: Optional[str] = None
-    rack_name: Optional[str] = None
+    rack_number: Optional[str] = None  # Deprecated - kept for backwards compatibility
+    rack_name: Optional[str] = None  # Deprecated - rack belongs to Stock Entry
 
 
 class MedicineCreate(MedicineBase):
@@ -64,8 +64,8 @@ class MedicineUpdate(BaseModel):
     generic_name: Optional[str] = None
     brand: Optional[str] = None
     manufacturer: Optional[str] = None
-    medicine_type: Optional[MedicineType] = None
-    category: Optional[MedicineCategory] = None
+    medicine_type: Optional[str] = None  # Changed from enum to string
+    category: Optional[str] = None  # Changed from enum to string
     composition: Optional[str] = None
     strength: Optional[str] = None
     unit: Optional[str] = None

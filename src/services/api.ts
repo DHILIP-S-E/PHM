@@ -435,6 +435,24 @@ export const mastersApi = {
     createPaymentMethod: (data: any) => api.post('/masters/payment-methods', data),
     updatePaymentMethod: (id: string, data: any) => api.put(`/masters/payment-methods/${id}`, data),
     deletePaymentMethod: (id: string) => api.delete(`/masters/payment-methods/${id}`),
+
+    // Medicine Types
+    listMedicineTypes: () => api.get('/masters/medicine-types'),
+    createMedicineType: (data: any) => api.post('/masters/medicine-types', data),
+    updateMedicineType: (id: string, data: any) => api.put(`/masters/medicine-types/${id}`, data),
+    deleteMedicineType: (id: string) => api.delete(`/masters/medicine-types/${id}`),
+
+    // Brands
+    listBrands: () => api.get('/masters/brands'),
+    createBrand: (data: any) => api.post('/masters/brands', data),
+    updateBrand: (id: string, data: any) => api.put(`/masters/brands/${id}`, data),
+    deleteBrand: (id: string) => api.delete(`/masters/brands/${id}`),
+
+    // Manufacturers
+    listManufacturers: () => api.get('/masters/manufacturers'),
+    createManufacturer: (data: any) => api.post('/masters/manufacturers', data),
+    updateManufacturer: (id: string, data: any) => api.put(`/masters/manufacturers/${id}`, data),
+    deleteManufacturer: (id: string) => api.delete(`/masters/manufacturers/${id}`),
 };
 
 // Master Options API (Status, Types, Priorities - Configurable Dropdowns)

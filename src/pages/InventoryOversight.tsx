@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { inventoryApi } from '../services/api'; // Remove warehousesApi, shopsApi
 import { useOperationalContext } from '../contexts/OperationalContext';
 import { WarehouseSelect, ShopSelect } from '../components/MasterSelect';
@@ -18,13 +19,29 @@ interface StockItem {
 type TabType = 'warehouse' | 'shop' | 'expiry' | 'dead-stock';
 
 export default function InventoryOversight() {
+    const location = useLocation();
     const { activeEntity, scope } = useOperationalContext();
-    const [activeTab, setActiveTab] = useState<TabType>('warehouse');
+
+    // Determine initial tab from URL
+    const getTabFromPath = (): TabType => {
+        const path = location.pathname;
+        if (path.includes('/expiry')) return 'expiry';
+        if (path.includes('/dead-stock')) return 'dead-stock';
+        if (path.includes('/shop')) return 'shop';
+        return 'warehouse';
+    };
+
+    const [activeTab, setActiveTab] = useState<TabType>(getTabFromPath());
     // removed local warehouses/shops state
     const [stockData, setStockData] = useState<StockItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedWarehouse, setSelectedWarehouse] = useState('');
     const [selectedShop, setSelectedShop] = useState('');
+
+    // Update tab when URL changes
+    useEffect(() => {
+        setActiveTab(getTabFromPath());
+    }, [location.pathname]);
 
     useEffect(() => {
         // Init filters from context if available

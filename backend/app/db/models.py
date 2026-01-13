@@ -1463,3 +1463,69 @@ class DepartmentMaster(Base):
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BrandMaster(Base):
+    """Medicine brands master"""
+    __tablename__ = "brand_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ManufacturerMaster(Base):
+    """Medicine manufacturers master"""
+    __tablename__ = "manufacturer_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    address = Column(Text)
+    contact_person = Column(String(100))
+    phone = Column(String(20))
+    email = Column(String(255))
+    website = Column(String(255))
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SupplierMaster(Base):
+    """Medicine suppliers/distributors master"""
+    __tablename__ = "supplier_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    contact_person = Column(String(100))
+    phone = Column(String(20))
+    email = Column(String(255))
+    address = Column(Text)
+    city = Column(String(50))
+    state = Column(String(50))
+    pincode = Column(String(10))
+    gst_number = Column(String(20))
+    drug_license = Column(String(50))
+    credit_days = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AdjustmentReasonMaster(Base):
+    """Stock adjustment reasons master"""
+    __tablename__ = "adjustment_reason_master"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    adjustment_type = Column(String(20), nullable=False)  # "increase" or "decrease"
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -13,7 +13,8 @@ from app.db.models import (
     MedicineCategory, UnitMaster, HSNMaster, Rack, Role, Warehouse, MedicalShop,
     PaymentMethodMaster, ShopTypeMaster, CustomerTypeMaster, MedicineTypeMaster,
     GSTSlabMaster, GenderMaster, EmploymentTypeMaster, UrgencyMaster,
-    StatusMaster, DesignationMaster, DepartmentMaster
+    StatusMaster, DesignationMaster, DepartmentMaster, BrandMaster, ManufacturerMaster,
+    SupplierMaster, AdjustmentReasonMaster
 )
 from app.api.v1.auth import get_current_user
 
@@ -250,6 +251,68 @@ class RackMinimalResponse(BaseModel):
         from_attributes = True
 
 
+class BrandResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    description: Optional[str] = None
+    is_active: bool
+    sort_order: Optional[int] = 0
+
+    class Config:
+        from_attributes = True
+
+
+class ManufacturerResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    address: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    is_active: bool
+    sort_order: Optional[int] = 0
+
+    class Config:
+        from_attributes = True
+
+
+class SupplierResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    gst_number: Optional[str] = None
+    drug_license: Optional[str] = None
+    credit_days: int = 0
+    is_active: bool
+    sort_order: Optional[int] = 0
+
+    class Config:
+        from_attributes = True
+
+
+class AdjustmentReasonResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    adjustment_type: str
+    description: Optional[str] = None
+    is_active: bool
+    sort_order: Optional[int] = 0
+
+    class Config:
+        from_attributes = True
+
+
 class AllMastersResponse(BaseModel):
     """Complete master data for frontend caching"""
     categories: List[CategoryResponse]
@@ -270,6 +333,10 @@ class AllMastersResponse(BaseModel):
     warehouses: List[WarehouseMinimalResponse]
     shops: List[ShopMinimalResponse]
     racks: List[RackMinimalResponse]
+    brands: List[BrandResponse]
+    manufacturers: List[ManufacturerResponse]
+    suppliers: List[SupplierResponse]
+    adjustment_reasons: List[AdjustmentReasonResponse]
 
 
 # ==================== MAIN ENDPOINT ====================
@@ -317,6 +384,10 @@ async def get_all_masters(
         warehouses=db.query(Warehouse).filter(Warehouse.status == "active").all(),
         shops=db.query(MedicalShop).filter(MedicalShop.status == "active").all(),
         racks=filter_active(db.query(Rack), Rack).all(),
+        brands=order_by_sort(filter_active(db.query(BrandMaster), BrandMaster), BrandMaster).all(),
+        manufacturers=order_by_sort(filter_active(db.query(ManufacturerMaster), ManufacturerMaster), ManufacturerMaster).all(),
+        suppliers=order_by_sort(filter_active(db.query(SupplierMaster), SupplierMaster), SupplierMaster).all(),
+        adjustment_reasons=order_by_sort(filter_active(db.query(AdjustmentReasonMaster), AdjustmentReasonMaster), AdjustmentReasonMaster).all(),
     )
 
 

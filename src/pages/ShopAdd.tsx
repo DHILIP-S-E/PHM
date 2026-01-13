@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
-import { ShopTypeSelect, WarehouseSelect } from '../components/MasterSelect';
+import { WarehouseSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -98,10 +98,16 @@ export default function ShopAdd() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Shop Type</label>
-                                    <ShopTypeSelect
+                                    <select
                                         value={formData.shop_type}
-                                        onChange={(val) => setFormData({ ...formData, shop_type: val })}
-                                    />
+                                        onChange={(e) => setFormData({ ...formData, shop_type: e.target.value })}
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                    >
+                                        <option value="retail">Retail Pharmacy</option>
+                                        <option value="wholesale">Wholesale</option>
+                                        <option value="hospital">Hospital Pharmacy</option>
+                                        <option value="clinic">Clinic Pharmacy</option>
+                                    </select>
                                 </div>
                                 <Input
                                     label="License Number *"

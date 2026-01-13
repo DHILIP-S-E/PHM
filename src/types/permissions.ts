@@ -187,4 +187,80 @@ export const PERMISSIONS = {
 
     // Notifications
     NOTIFICATIONS_VIEW: 'notifications.view',
+
+    // Master Data - Brands
+    BRANDS_VIEW: 'brands.view',
+    BRANDS_CREATE: 'brands.create',
+    BRANDS_EDIT: 'brands.edit',
+    BRANDS_DELETE: 'brands.delete',
+
+    // Master Data - Manufacturers
+    MANUFACTURERS_VIEW: 'manufacturers.view',
+    MANUFACTURERS_CREATE: 'manufacturers.create',
+    MANUFACTURERS_EDIT: 'manufacturers.edit',
+    MANUFACTURERS_DELETE: 'manufacturers.delete',
+
+    // Master Data - Medicine Types
+    MEDICINE_TYPES_VIEW: 'medicine_types.view',
+    MEDICINE_TYPES_CREATE: 'medicine_types.create',
+    MEDICINE_TYPES_EDIT: 'medicine_types.edit',
+    MEDICINE_TYPES_DELETE: 'medicine_types.delete',
+
+    // Master Data - Suppliers
+    SUPPLIERS_VIEW: 'suppliers.view',
+    SUPPLIERS_CREATE: 'suppliers.create',
+    SUPPLIERS_EDIT: 'suppliers.edit',
+    SUPPLIERS_DELETE: 'suppliers.delete',
+
+    // Master Data - Adjustment Reasons
+    ADJUSTMENT_REASONS_VIEW: 'adjustment_reasons.view',
+    ADJUSTMENT_REASONS_CREATE: 'adjustment_reasons.create',
+    ADJUSTMENT_REASONS_EDIT: 'adjustment_reasons.edit',
+    ADJUSTMENT_REASONS_DELETE: 'adjustment_reasons.delete',
+
+    // Master Data - Payment Methods
+    PAYMENT_METHODS_VIEW: 'payment_methods.view',
+    PAYMENT_METHODS_CREATE: 'payment_methods.create',
+    PAYMENT_METHODS_EDIT: 'payment_methods.edit',
+    PAYMENT_METHODS_DELETE: 'payment_methods.delete',
+
+    // Master Data - Shop Types
+    SHOP_TYPES_VIEW: 'shop_types.view',
+    SHOP_TYPES_CREATE: 'shop_types.create',
+    SHOP_TYPES_EDIT: 'shop_types.edit',
+    SHOP_TYPES_DELETE: 'shop_types.delete',
+
+    // Master Data - Customer Types
+    CUSTOMER_TYPES_VIEW: 'customer_types.view',
+    CUSTOMER_TYPES_CREATE: 'customer_types.create',
+    CUSTOMER_TYPES_EDIT: 'customer_types.edit',
+    CUSTOMER_TYPES_DELETE: 'customer_types.delete',
+
+    // Master Data - Genders
+    GENDERS_VIEW: 'genders.view',
+    GENDERS_MANAGE: 'genders.manage',
+
+    // Master Data - Employment Types
+    EMPLOYMENT_TYPES_VIEW: 'employment_types.view',
+    EMPLOYMENT_TYPES_MANAGE: 'employment_types.manage',
+
+    // Master Data - Urgency Levels
+    URGENCY_LEVELS_VIEW: 'urgency_levels.view',
+    URGENCY_LEVELS_MANAGE: 'urgency_levels.manage',
+
+    // Master Data - Statuses
+    STATUSES_VIEW: 'statuses.view',
+    STATUSES_MANAGE: 'statuses.manage',
+
+    // Master Data - Designations
+    DESIGNATIONS_VIEW: 'designations.view',
+    DESIGNATIONS_CREATE: 'designations.create',
+    DESIGNATIONS_EDIT: 'designations.edit',
+    DESIGNATIONS_DELETE: 'designations.delete',
+
+    // Master Data - Departments
+    DEPARTMENTS_VIEW: 'departments.view',
+    DEPARTMENTS_CREATE: 'departments.create',
+    DEPARTMENTS_EDIT: 'departments.edit',
+    DEPARTMENTS_DELETE: 'departments.delete',
 } as const;

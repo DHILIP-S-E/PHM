@@ -4,7 +4,7 @@ import { medicinesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
 import { MasterDataWarning } from '../components/MasterDataWarning';
-import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect } from '../components/MasterSelect';
+import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect, BrandSelect, ManufacturerSelect, HSNSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -33,8 +33,9 @@ export default function MedicineAdd() {
         is_prescription_required: false,
         is_controlled: false,
         storage_conditions: '',
-        rack_number: '',
-        rack_name: '',
+        // ❌ NO rack_name, rack_number - Rack belongs to Stock Entry, not Medicine Master
+        // Medicine Master = Product Identity ("What is this product?")
+        // Stock Entry = Physical Storage ("Where & how much is stored?")
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -54,7 +55,22 @@ export default function MedicineAdd() {
             navigate('/medicines');
         } catch (err: any) {
             console.error('Failed to create medicine:', err);
-            setError(err.response?.data?.detail || 'Failed to create medicine');
+            // Handle Pydantic validation errors (array of {type, loc, msg, input, ctx})
+            const detail = err.response?.data?.detail;
+            if (Array.isArray(detail)) {
+                // Extract messages from validation errors
+                const messages = detail.map((e: any) => {
+                    const field = e.loc?.slice(1).join('.') || 'Unknown field';
+                    return `${field}: ${e.msg}`;
+                });
+                setError(messages.join(', '));
+            } else if (typeof detail === 'string') {
+                setError(detail);
+            } else if (typeof detail === 'object' && detail?.msg) {
+                setError(detail.msg);
+            } else {
+                setError('Failed to create medicine');
+            }
         } finally {
             setSaving(false);
         }
@@ -102,18 +118,22 @@ export default function MedicineAdd() {
                                     onChange={(e) => setFormData({ ...formData, generic_name: e.target.value })}
                                     placeholder="Paracetamol"
                                 />
-                                <Input
-                                    label="Brand"
-                                    value={formData.brand}
-                                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                                    placeholder="Dolo"
-                                />
-                                <Input
-                                    label="Manufacturer"
-                                    value={formData.manufacturer}
-                                    onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                                    placeholder="Micro Labs"
-                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Brand</label>
+                                    <BrandSelect
+                                        value={formData.brand}
+                                        onChange={(val) => setFormData({ ...formData, brand: val })}
+                                        disabled={mastersLoading}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Manufacturer</label>
+                                    <ManufacturerSelect
+                                        value={formData.manufacturer}
+                                        onChange={(val) => setFormData({ ...formData, manufacturer: val })}
+                                        disabled={mastersLoading}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -164,13 +184,21 @@ export default function MedicineAdd() {
                                     onChange={(e) => setFormData({ ...formData, pack_size: parseInt(e.target.value) || 1 })}
                                     min="1"
                                 />
-                                <Input
-                                    label="HSN Code"
-                                    value={formData.hsn_code}
-                                    onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })}
-                                    className="font-mono"
-                                    placeholder="30049099"
-                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">HSN Code</label>
+                                    <HSNSelect
+                                        value={formData.hsn_code}
+                                        onChange={(hsnCode, gstRate) => {
+                                            // Auto-fill GST rate when HSN is selected
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                hsn_code: hsnCode,
+                                                ...(gstRate !== undefined ? { gst_rate: gstRate } : {})
+                                            }));
+                                        }}
+                                        disabled={mastersLoading}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -205,23 +233,20 @@ export default function MedicineAdd() {
                             </div>
                         </div>
 
-                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Storage Location</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input
-                                    label="Rack Name"
-                                    value={formData.rack_name}
-                                    onChange={(e) => setFormData({ ...formData, rack_name: e.target.value })}
-                                    placeholder="Shelf A"
-                                />
-                                <Input
-                                    label="Rack Number"
-                                    value={formData.rack_number}
-                                    onChange={(e) => setFormData({ ...formData, rack_number: e.target.value })}
-                                    placeholder="12"
-                                />
-                            </div>
-                        </div>
+                        {/* 
+                          ❌ REMOVED: Storage Location section (Rack Name, Rack Number)
+                          
+                          Medicine Master = Product Identity ("What is this product?")
+                          - Defines what the medicine IS, not where it's stored
+                          
+                          Rack belongs in Stock Entry because:
+                          - Same medicine can be stored in multiple racks
+                          - Same medicine can be in different warehouses/shops
+                          - Rack assignment happens when stock is physically placed
+                          
+                          Stock Entry (where rack belongs):
+                          - Medicine → Warehouse → Batch → Quantity → Rack
+                        */}
 
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Additional Information</h3>

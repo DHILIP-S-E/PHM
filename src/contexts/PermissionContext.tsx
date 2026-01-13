@@ -16,14 +16,35 @@ const PermissionContext = createContext<PermissionContextType | undefined>(undef
 export function PermissionProvider({ children }: { children: ReactNode }) {
     const { user } = useUser();
     const permissions = user?.permissions ?? [];
+    const isSuperAdmin = user?.role === 'super_admin';
 
     const value: PermissionContextType = {
         permissions,
-        hasPermission: (permission: string) => hasPermission(permissions, permission),
-        hasAnyPermission: (perms: string[]) => hasAnyPermission(permissions, perms),
-        hasAllPermissions: (perms: string[]) => hasAllPermissions(permissions, perms),
-        hasModuleAccess: (module: string) => hasModuleAccess(permissions, module),
-        getScopeForPermission: (prefix: string) => getScopeForPermission(permissions, prefix),
+        hasPermission: (permission: string) => {
+            // Super Admin bypasses all permission checks
+            if (isSuperAdmin) return true;
+            return hasPermission(permissions, permission);
+        },
+        hasAnyPermission: (perms: string[]) => {
+            // Super Admin bypasses all permission checks
+            if (isSuperAdmin) return true;
+            return hasAnyPermission(permissions, perms);
+        },
+        hasAllPermissions: (perms: string[]) => {
+            // Super Admin bypasses all permission checks
+            if (isSuperAdmin) return true;
+            return hasAllPermissions(permissions, perms);
+        },
+        hasModuleAccess: (module: string) => {
+            // Super Admin bypasses all permission checks
+            if (isSuperAdmin) return true;
+            return hasModuleAccess(permissions, module);
+        },
+        getScopeForPermission: (prefix: string) => {
+            // Super Admin always has global scope
+            if (isSuperAdmin) return 'global';
+            return getScopeForPermission(permissions, prefix);
+        },
     };
 
     return (

@@ -292,6 +292,55 @@ export function GSTSlabSelect({ value, onChange, required, disabled, className }
 }
 
 /**
+ * HSNSelect - For HSN codes with auto-GST derivation
+ */
+interface HSNSelectProps {
+    value: string;
+    onChange: (hsnCode: string, gstRate?: number) => void;
+    required?: boolean;
+    disabled?: boolean;
+    className?: string;
+    placeholder?: string;
+}
+
+export function HSNSelect({ value, onChange, required, disabled, className, placeholder }: HSNSelectProps) {
+    const { getMaster, isLoading } = useMasterData();
+    const hsnCodes = getMaster('hsn_codes');
+
+    const defaultClassName = `w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all ${disabled || isLoading ? 'opacity-60 cursor-not-allowed' : ''}`;
+
+    // Show warning when no HSN codes exist
+    const isEmpty = !isLoading && hsnCodes.length === 0;
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedCode = e.target.value;
+        const hsn = hsnCodes.find(h => h.hsn_code === selectedCode);
+        // Pass both the HSN code and the GST rate to auto-fill GST
+        onChange(selectedCode, hsn?.gst_rate);
+    };
+
+    return (
+        <select
+            value={value}
+            onChange={handleChange}
+            required={required}
+            disabled={disabled || isLoading || isEmpty}
+            className={className || defaultClassName}
+            title={isEmpty ? 'No HSN codes available. Please ask your Super Admin to add HSN codes in Master Data → HSN Codes' : undefined}
+        >
+            <option value="">
+                {isLoading ? 'Loading...' : isEmpty ? '⚠️ No HSN codes found - Contact Super Admin' : (placeholder || 'Select HSN Code')}
+            </option>
+            {hsnCodes.map((hsn) => (
+                <option key={hsn.id} value={hsn.hsn_code}>
+                    {hsn.hsn_code} - {hsn.description?.substring(0, 40) || 'No description'} ({hsn.gst_rate}%)
+                </option>
+            ))}
+        </select>
+    );
+}
+
+/**
  * PaymentMethodSelect - For payment methods in billing
  */
 export function PaymentMethodSelect({ value, onChange, required, disabled, className, placeholder }: CategorySelectProps) {
@@ -511,4 +560,63 @@ export function StatusSelect({ value, onChange, entityType, required, disabled, 
     );
 }
 
+/**
+ * BrandSelect - For medicine brands
+ */
+export function BrandSelect({ value, onChange, required, disabled, className, placeholder }: CategorySelectProps) {
+    const { getMaster, isLoading } = useMasterData();
+    const brands = getMaster('brands');
+
+    const defaultClassName = `w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all ${disabled || isLoading ? 'opacity-60 cursor-not-allowed' : ''}`;
+
+    return (
+        <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={required}
+            disabled={disabled || isLoading}
+            className={className || defaultClassName}
+        >
+            <option value="">
+                {isLoading ? 'Loading...' : (placeholder || 'Select Brand')}
+            </option>
+            {brands.map((brand) => (
+                <option key={brand.id} value={brand.name}>
+                    {brand.name}
+                </option>
+            ))}
+        </select>
+    );
+}
+
+/**
+ * ManufacturerSelect - For medicine manufacturers
+ */
+export function ManufacturerSelect({ value, onChange, required, disabled, className, placeholder }: CategorySelectProps) {
+    const { getMaster, isLoading } = useMasterData();
+    const manufacturers = getMaster('manufacturers');
+
+    const defaultClassName = `w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all ${disabled || isLoading ? 'opacity-60 cursor-not-allowed' : ''}`;
+
+    return (
+        <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={required}
+            disabled={disabled || isLoading}
+            className={className || defaultClassName}
+        >
+            <option value="">
+                {isLoading ? 'Loading...' : (placeholder || 'Select Manufacturer')}
+            </option>
+            {manufacturers.map((mfr) => (
+                <option key={mfr.id} value={mfr.name}>
+                    {mfr.name}
+                </option>
+            ))}
+        </select>
+    );
+}
+
 export default MasterSelect;
+

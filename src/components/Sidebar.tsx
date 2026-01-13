@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import { useOperationalContext } from '../contexts/OperationalContext';
 import { getRoleName } from '../utils/rbac';
 
 interface SubItem {
     path: string;
     label: string;
     icon: string;
-    roles?: string[];  // Legacy: role-based filtering
-    permissions?: string[];  // New: permission-based filtering (any match)
+    permissions?: string[];
+    divider?: boolean;  // Visual separator before this item
 }
 
 interface NavItemType {
@@ -18,46 +17,73 @@ interface NavItemType {
     label: string;
     icon: string;
     badge?: number | string;
-    roles?: string[];  // Legacy: role-based filtering
-    permissions?: string[];  // New: permission-based filtering (any match)
+    permissions?: string[];
     children?: SubItem[];
+    excludeFromSuperAdmin?: boolean;
 }
 
-// PLATFORM MANAGEMENT NAVIGATION (Super Admin + Permitted Users)
-const platformManagementItems: NavItemType[] = [
-    // Dashboard for ALL roles
-    { path: '/', label: 'Dashboard', icon: 'dashboard', permissions: ['dashboard.view'] },
+// ============================================================================
+// SUPER ADMIN SIDEBAR STRUCTURE (CLEAN & FINAL)
+// Role Intent: Structure, Masters, Access, and Global Visibility
+// Super Admin does NOT do day-to-day warehouse or pharmacy operations
+// ============================================================================
 
-    // Warehouse Management
+const superAdminItems: NavItemType[] = [
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1️⃣ DASHBOARD - Read-only system overview
+    // ─────────────────────────────────────────────────────────────────────────
+    {
+        path: '/',
+        label: 'Dashboard',
+        icon: 'dashboard',
+        permissions: ['dashboard.view']
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2️⃣ WAREHOUSES - Physical inventory entities
+    // Define warehouse identity (name, code, location)
+    // Control whether a warehouse is active in the system
+    // 🚫 No stock, no batch, no GST here - just entity definition
+    // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/warehouses',
-        label: 'Warehouse Management',
+        label: 'Warehouses',
         icon: 'warehouse',
         permissions: ['warehouses.view', 'warehouses.create'],
         children: [
             { path: '/warehouses', label: 'View All Warehouses', icon: 'list', permissions: ['warehouses.view'] },
-            { path: '/warehouses/add', label: 'Add Warehouse', icon: 'add', permissions: ['warehouses.create'] },
+            { path: '/warehouses/add', label: 'Add Warehouse', icon: 'add_circle', permissions: ['warehouses.create'] },
         ]
     },
 
-    // Medical Shop Management
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3️⃣ MEDICAL SHOPS - Retail entities
+    // Warehouse selection happens during shop creation (mapping saved once)
+    // ❌ No separate "warehouse mapping" sidebar
+    // ❌ No inventory here - just entity definition + linkage
+    // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/shops',
-        label: 'Medical Shop Management',
+        label: 'Medical Shops',
         icon: 'storefront',
         permissions: ['shops.view', 'shops.create'],
         children: [
             { path: '/shops', label: 'View All Shops', icon: 'list', permissions: ['shops.view'] },
-            { path: '/shops/add', label: 'Add Shop', icon: 'add', permissions: ['shops.create'] },
+            { path: '/shops/add', label: 'Add Shop', icon: 'add_circle', permissions: ['shops.create'] },
         ]
     },
 
-    // Users & Access Control
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4️⃣ USERS & ACCESS - Security & control
+    // Create users, assign roles, assign permissions, bind entity if required
+    // Super Admin role: Exists by system seed - cannot be created or assigned
+    // Sidebar visibility everywhere is driven by permissions
+    // ─────────────────────────────────────────────────────────────────────────
     {
-        path: '/users',
+        path: '/users-access',
         label: 'Users & Access',
         icon: 'manage_accounts',
-        permissions: ['users.view', 'roles.view'],
+        permissions: ['users.view', 'roles.view', 'login_activity.view'],
         children: [
             { path: '/users', label: 'Users', icon: 'people', permissions: ['users.view'] },
             { path: '/roles', label: 'Roles & Permissions', icon: 'admin_panel_settings', permissions: ['roles.view', 'roles.manage'] },
@@ -65,154 +91,257 @@ const platformManagementItems: NavItemType[] = [
         ]
     },
 
-    // Master Data Management (Super Admin only)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5️⃣ MASTER DATA - MOST IMPORTANT SECTION (SSOT)
+    // If something appears in a dropdown anywhere → it is created here
+    // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/master-data',
-        label: 'Master Data Management',
+        label: 'Master Data',
         icon: 'dataset',
-        permissions: ['categories.manage', 'units.manage', 'hsn.manage', 'gst.manage'],
+        permissions: [
+            'gst.manage', 'hsn.manage', 'categories.manage', 'units.manage', 'suppliers.manage',
+            'brands.view', 'brands.create', 'manufacturers.view', 'manufacturers.create',
+            'medicine_types.view', 'adjustment_reasons.view', 'payment_methods.view'
+        ],
         children: [
-            // Medicine Reference Masters
-            { path: '/categories', label: '💊 Medicine Categories', icon: 'category', permissions: ['categories.manage'] },
-            { path: '/medicine-types', label: '💊 Medicine Types', icon: 'medication', permissions: ['medicine_types.manage'] },
-            { path: '/brands', label: '💊 Brands', icon: 'label', permissions: ['brands.manage'] },
-            { path: '/manufacturers', label: '💊 Manufacturers', icon: 'factory', permissions: ['manufacturers.manage'] },
-            { path: '/units', label: '💊 Units / Packaging', icon: 'straighten', permissions: ['units.manage'] },
-            { path: '/hsn', label: '💊 HSN Codes', icon: 'tag', permissions: ['hsn.manage'] },
+            // ═══════════════════════════════════════════════════════════════
+            // 5.1 TAX MASTER - GST/VAT Slabs
+            // Create: GST 0%, 5%, 12%, 18%, 28%, etc.
+            // Each slab: Slab name, Total %, CGST/SGST/IGST, Active flag
+            // Used by: HSN, Medicine, Billing, Reports
+            // 🚫 GST % is never typed elsewhere
+            // ═══════════════════════════════════════════════════════════════
+            { path: '/gst-slabs', label: 'GST / VAT Slabs', icon: 'percent', permissions: ['gst.manage'] },
 
-            // Tax & Finance Masters
-            { path: '/gst', label: '💰 GST / VAT Slabs', icon: 'percent', permissions: ['gst.manage'] },
-            { path: '/tax-groups', label: '💰 Tax Groups', icon: 'account_balance', permissions: ['tax_groups.manage'] },
+            // ═══════════════════════════════════════════════════════════════
+            // 5.2 HSN MASTER
+            // Create: HSN code, Description, GST slab (selected from GST Master)
+            // ❌ Cannot create HSN without GST slab - GST is derived, not entered
+            // ═══════════════════════════════════════════════════════════════
+            { path: '/hsn', label: 'HSN Codes', icon: 'tag', permissions: ['hsn.manage'], divider: true },
 
-            // Inventory Reference Masters
-            { path: '/racks', label: '🗄 Rack Master', icon: 'shelves', permissions: ['racks.manage'] },
-            { path: '/adjustment-reasons', label: '🗄 Stock Adjustment Reasons', icon: 'edit_note', permissions: ['adjustment_reasons.manage'] },
-            { path: '/stock-statuses', label: '🗄 Stock Status Types', icon: 'inventory', permissions: ['stock_statuses.manage'] },
+            // ═══════════════════════════════════════════════════════════════
+            // 5.3 MEDICINE REFERENCE MASTERS
+            // Create: Categories, Types, Brands, Manufacturers, Units/Packaging
+            // Used by: Medicine Master, Inventory, Billing, Reports
+            // 🚫 These are not medicines, only definitions
+            // ═══════════════════════════════════════════════════════════════
+            { path: '/categories', label: 'Medicine Categories', icon: 'category', permissions: ['categories.manage'], divider: true },
+            { path: '/medicine-types', label: 'Medicine Types', icon: 'medication', permissions: ['medicine_types.manage'] },
+            { path: '/brands', label: 'Brands', icon: 'label', permissions: ['brands.manage'] },
+            { path: '/manufacturers', label: 'Manufacturers', icon: 'factory', permissions: ['manufacturers.manage'] },
+            { path: '/units', label: 'Units / Packaging', icon: 'straighten', permissions: ['units.manage'] },
 
-            // Billing Reference Masters
-            { path: '/payment-methods', label: '🧾 Payment Methods', icon: 'payments', permissions: ['payment_methods.manage'] },
-            { path: '/discount-types', label: '🧾 Discount Types', icon: 'local_offer', permissions: ['discount_types.manage'] },
+            // ═══════════════════════════════════════════════════════════════
+            // 5.4 INVENTORY REFERENCE MASTERS
+            // Create: Rack Name/Number, Stock adjustment reasons, Stock status types
+            // Used by: Stock entry, Inventory logs, Audit trails
+            // ═══════════════════════════════════════════════════════════════
+            { path: '/racks', label: 'Rack Master', icon: 'shelves', permissions: ['racks.manage'], divider: true },
+            { path: '/adjustment-reasons', label: 'Adjustment Reasons', icon: 'edit_note', permissions: ['adjustment_reasons.manage'] },
 
-            // Business Reference Masters
-            { path: '/suppliers', label: '🤝 Suppliers', icon: 'local_shipping', permissions: ['suppliers.manage'] },
-            { path: '/customer-types', label: '🤝 Customer Types', icon: 'group', permissions: ['customer_types.manage'] },
+            // ═══════════════════════════════════════════════════════════════
+            // 5.5 BUSINESS REFERENCE MASTERS
+            // Create: Suppliers, Payment Methods, Discount Types
+            // Used by: Purchase, POS billing, Reports
+            // ═══════════════════════════════════════════════════════════════
+            { path: '/suppliers', label: 'Suppliers', icon: 'local_shipping', permissions: ['suppliers.manage'], divider: true },
+            { path: '/payment-methods', label: 'Payment Methods', icon: 'payments', permissions: ['payment_methods.manage'] },
         ]
     },
 
-    // Medicine Master (Global definition only - no batch/quantity)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6️⃣ MEDICINE MASTER - Global medicine definition
+    // Medicine form is gated by masters:
+    // Category → Category Master, Type → Type Master, Brand → Brand Master
+    // Manufacturer → Manufacturer Master, Unit → Unit Master
+    // HSN → HSN Master, GST → auto-derived from HSN
+    // 🚫 No batch, 🚫 No expiry, 🚫 No quantity
+    // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/medicines',
         label: 'Medicine Master',
         icon: 'medication',
-        permissions: ['medicines.view'],
+        permissions: ['medicines.view', 'medicines.create'],
         children: [
-            { path: '/medicines', label: 'Medicines', icon: 'medication', permissions: ['medicines.view'] },
-            { path: '/medicines/add', label: 'Add Medicine', icon: 'add', permissions: ['medicines.create'] },
+            { path: '/medicines', label: 'View Medicines', icon: 'list', permissions: ['medicines.view'] },
+            { path: '/medicines/add', label: 'Add Medicine', icon: 'add_circle', permissions: ['medicines.create'] },
         ]
     },
 
-    // Global Inventory Oversight (READ-ONLY for Super Admin)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 7️⃣ INVENTORY OVERSIGHT - Global monitoring, NOT operations
+    // Monitor: Warehouse stock (aggregated), Shop stock (aggregated)
+    // Monitor: Expiry monitoring, Dead stock
+    // What you do: Monitor health, Identify risks, Drill down to reports
+    // 🚫 No stock entry, 🚫 No batch creation
+    // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/inventory-oversight',
         label: 'Inventory Oversight',
-        icon: 'inventory',
+        icon: 'inventory_2',
         permissions: ['inventory.view.global'],
         children: [
-            { path: '/inventory-oversight/warehouse', label: 'Warehouse Stock', icon: 'warehouse', permissions: ['inventory.view.global'] },
-            { path: '/inventory-oversight/shop', label: 'Shop Stock', icon: 'storefront', permissions: ['inventory.view.global'] },
-            { path: '/inventory-oversight/expiry', label: 'Expiry Monitoring', icon: 'event', permissions: ['inventory.view.global'] },
-            { path: '/inventory-oversight/dead-stock', label: 'Dead Stock Analytics', icon: 'warning', permissions: ['inventory.view.global'] },
+            { path: '/inventory-oversight', label: 'Overview', icon: 'analytics', permissions: ['inventory.view.global'] },
+            { path: '/inventory-oversight/expiry', label: 'Expiry Monitoring', icon: 'event_busy', permissions: ['inventory.view.global'] },
+            { path: '/inventory-oversight/dead-stock', label: 'Dead Stock', icon: 'warning', permissions: ['inventory.view.global'] },
         ]
     },
 
-    // Orders & Supply Chain (Global View - Super Admin oversight)
-    {
-        path: '/supply-chain',
-        label: 'Orders & Supply Chain',
-        icon: 'local_shipping',
-        permissions: ['supply_chain.view.global'],
-        children: [
-            { path: '/supply-chain/purchase-requests', label: 'Shop Purchase Requests', icon: 'shopping_cart', permissions: ['purchase_requests.view.global'] },
-            { path: '/supply-chain/dispatch-analytics', label: 'Dispatch Analytics', icon: 'insights', permissions: ['dispatches.view.global'] },
-            { path: '/supply-chain/transfers', label: 'Inter-Warehouse Transfers', icon: 'swap_horiz', permissions: ['transfers.view.global'] },
-        ]
-    },
-
-    // Finance & Tax Control (Platform Level)
-    {
-        path: '/finance',
-        label: 'Finance & Tax Control',
-        icon: 'account_balance',
-        permissions: ['finance.view.global'],
-        children: [
-            { path: '/finance/gst-reports', label: 'Platform GST Reports', icon: 'receipt', permissions: ['finance.view.global'] },
-            { path: '/finance/vat-reports', label: 'Consolidated VAT Reports', icon: 'description', permissions: ['finance.view.global'] },
-            { path: '/finance/revenue', label: 'Revenue Dashboards', icon: 'trending_up', permissions: ['finance.view.global'] },
-            { path: '/finance/saas-billing', label: 'SaaS Billing / Commission', icon: 'credit_card', permissions: ['finance.view.global'] },
-        ]
-    },
-];
-
-// OPERATIONAL ITEMS (Warehouse Admin, Pharmacy Admin ONLY - EXCLUDED from Super Admin)
-interface OperationalNavItem extends NavItemType {
-    excludeFromSuperAdmin?: boolean;  // If true, Super Admin cannot see this
-}
-
-const operationalItems: OperationalNavItem[] = [
-    // ❌ WAREHOUSE OPERATIONS (Super Admin should NOT see these)
-    { path: '/racks', label: 'Rack Master', icon: 'shelves', permissions: ['racks.view', 'racks.manage.warehouse'], excludeFromSuperAdmin: true },
-    { path: '/warehouses/stock', label: 'Stock Entry', icon: 'add_box', permissions: ['inventory.entry.warehouse'], excludeFromSuperAdmin: true },
-    { path: '/inventory', label: 'Inventory', icon: 'inventory_2', permissions: ['inventory.view.warehouse', 'inventory.view.shop'], excludeFromSuperAdmin: true },
-    { path: '/inventory/adjust', label: 'Stock Adjustment', icon: 'tune', permissions: ['inventory.adjust.warehouse'], excludeFromSuperAdmin: true },
-    { path: '/dispatches', label: 'Dispatches', icon: 'local_shipping', permissions: ['dispatches.view.warehouse', 'dispatches.view.shop'], excludeFromSuperAdmin: true },
-    { path: '/purchase-requests', label: 'Purchase Requests', icon: 'shopping_cart', permissions: ['purchase_requests.view.warehouse', 'purchase_requests.view.shop', 'purchase_requests.create.shop'], excludeFromSuperAdmin: true },
-
-    // ❌ SHOP OPERATIONS (Super Admin should NOT see these)
-    { path: '/sales/pos', label: 'POS Billing', icon: 'point_of_sale', permissions: ['billing.create.shop'], excludeFromSuperAdmin: true },
-    { path: '/sales/invoices', label: 'Invoices', icon: 'receipt_long', permissions: ['billing.view.shop'], excludeFromSuperAdmin: true },
-    { path: '/sales/returns', label: 'Returns & Refunds', icon: 'assignment_return', permissions: ['returns.view.shop', 'returns.create.shop'], excludeFromSuperAdmin: true },
-    { path: '/customers', label: 'Customers', icon: 'people', permissions: ['customers.view.shop'], excludeFromSuperAdmin: true },
-
-    // ❌ HR OPERATIONS (Super Admin should NOT see these)
-    { path: '/employees', label: 'Employees', icon: 'badge', permissions: ['employees.view.warehouse', 'employees.view.shop'], excludeFromSuperAdmin: true },
-    { path: '/employees/attendance', label: 'Attendance', icon: 'event_available', permissions: ['attendance.manage.warehouse', 'attendance.manage.shop'], excludeFromSuperAdmin: true },
-    { path: '/employees/salary', label: 'Salary', icon: 'payments', permissions: ['salary.manage.warehouse', 'salary.manage.shop'], excludeFromSuperAdmin: true },
-
-    // ✅ REPORTS (Allowed for Super Admin with global permissions)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8️⃣ REPORTS - System-wide analytics
+    // Sales (all shops), Inventory aging, Tax (GST/VAT) reports, Compliance
+    // Filters: Warehouse, Shop, Medicine/Category (all from masters)
+    // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/reports',
         label: 'Reports',
         icon: 'assessment',
-        permissions: ['reports.view.global', 'reports.view.warehouse', 'reports.view.shop'],
+        permissions: ['reports.view.global'],
         children: [
-            { path: '/reports/sales', label: 'Sales Reports', icon: 'bar_chart', permissions: ['reports.view.global', 'reports.view.shop'] },
-            { path: '/reports/expiry', label: 'Expiry Reports', icon: 'warning', permissions: ['reports.view.global', 'reports.view.warehouse', 'reports.view.shop'] },
-            { path: '/reports/tax', label: 'Tax Reports', icon: 'receipt', permissions: ['reports.view.global', 'reports.view.shop'] },
+            { path: '/reports/sales', label: 'Sales Reports', icon: 'bar_chart', permissions: ['reports.view.global'] },
+            { path: '/reports/inventory', label: 'Inventory Reports', icon: 'inventory', permissions: ['reports.view.global'] },
+            { path: '/reports/tax', label: 'Tax Reports', icon: 'receipt', permissions: ['reports.view.global'] },
+            { path: '/reports/expiry', label: 'Expiry Reports', icon: 'event_busy', permissions: ['reports.view.global'] },
+        ]
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 9️⃣ NOTIFICATIONS - Awareness only
+    // Low stock alerts, Expiry alerts, System alerts
+    // 🚫 No actions here
+    // ─────────────────────────────────────────────────────────────────────────
+    {
+        path: '/notifications',
+        label: 'Notifications',
+        icon: 'notifications',
+        permissions: ['notifications.view']
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 🔟 SYSTEM - Integrity & audit
+    // Audit logs, Error logs, Activity history, Backup/restore
+    // 🚫 Read-only, 🚫 Super Admin only
+    // ─────────────────────────────────────────────────────────────────────────
+    {
+        path: '/system',
+        label: 'System',
+        icon: 'settings',
+        permissions: ['audit.view', 'settings.manage'],
+        children: [
+            { path: '/audit-logs', label: 'Audit Logs', icon: 'history', permissions: ['audit.view'] },
+            { path: '/system/settings', label: 'System Settings', icon: 'tune', permissions: ['settings.manage'] },
         ]
     },
 ];
 
-// SYSTEM ITEMS (Super Admin + System Managers)
-const systemItems: NavItemType[] = [
-    { path: '/notifications', label: 'Notifications', icon: 'notifications', badge: 3, permissions: ['notifications.view'] },
+// ============================================================================
+// OPERATIONAL ITEMS - For Warehouse Admin, Pharmacy Admin ONLY
+// Super Admin does NOT see these - they are excluded
+// ============================================================================
+const operationalItems: NavItemType[] = [
+    // Warehouse Operations
     {
-        path: '/system',
-        label: 'System & Audit',
-        icon: 'settings',
-        permissions: ['settings.view', 'settings.manage', 'audit.view'],
+        path: '/warehouses/stock',
+        label: 'Stock Entry',
+        icon: 'add_box',
+        permissions: ['inventory.entry.warehouse'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/inventory',
+        label: 'Inventory',
+        icon: 'inventory_2',
+        permissions: ['inventory.view.warehouse', 'inventory.view.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/inventory/adjust',
+        label: 'Stock Adjustment',
+        icon: 'tune',
+        permissions: ['inventory.adjust.warehouse'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/dispatches',
+        label: 'Dispatches',
+        icon: 'local_shipping',
+        permissions: ['dispatches.view.warehouse', 'dispatches.view.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/purchase-requests',
+        label: 'Purchase Requests',
+        icon: 'shopping_cart',
+        permissions: ['purchase_requests.view.warehouse', 'purchase_requests.view.shop', 'purchase_requests.create.shop'],
+        excludeFromSuperAdmin: true
+    },
+
+    // Shop Operations
+    {
+        path: '/sales/pos',
+        label: 'POS Billing',
+        icon: 'point_of_sale',
+        permissions: ['billing.create.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/sales/invoices',
+        label: 'Invoices',
+        icon: 'receipt_long',
+        permissions: ['billing.view.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/sales/returns',
+        label: 'Returns & Refunds',
+        icon: 'assignment_return',
+        permissions: ['returns.view.shop', 'returns.create.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/customers',
+        label: 'Customers',
+        icon: 'people',
+        permissions: ['customers.view.shop'],
+        excludeFromSuperAdmin: true
+    },
+
+    // HR Operations
+    {
+        path: '/employees',
+        label: 'Employees',
+        icon: 'badge',
+        permissions: ['employees.view.warehouse', 'employees.view.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/employees/attendance',
+        label: 'Attendance',
+        icon: 'event_available',
+        permissions: ['attendance.manage.warehouse', 'attendance.manage.shop'],
+        excludeFromSuperAdmin: true
+    },
+    {
+        path: '/employees/salary',
+        label: 'Salary',
+        icon: 'payments',
+        permissions: ['salary.manage.warehouse', 'salary.manage.shop'],
+        excludeFromSuperAdmin: true
+    },
+
+    // Reports (operational level)
+    {
+        path: '/reports',
+        label: 'Reports',
+        icon: 'assessment',
+        permissions: ['reports.view.warehouse', 'reports.view.shop'],
+        excludeFromSuperAdmin: true,
         children: [
-            // Platform Settings
-            { path: '/feature-flags', label: 'Feature Toggles', icon: 'toggle_on', permissions: ['settings.manage'] },
-            { path: '/settings/application', label: 'Platform Settings', icon: 'tune', permissions: ['settings.manage'] },
-            { path: '/settings/license', label: 'License & Subscription', icon: 'verified', permissions: ['settings.manage'] },
-
-            // Audit & Monitoring
-            { path: '/audit-logs', label: 'Audit Logs', icon: 'history', permissions: ['audit.view'] },
-            { path: '/error-monitoring', label: 'Error Monitoring', icon: 'bug_report', permissions: ['audit.view'] },
-            { path: '/api-usage', label: 'API Usage Logs', icon: 'analytics', permissions: ['audit.view'] },
-
-            // Backup & Data Management
-            { path: '/backup-restore', label: 'Backup & Restore', icon: 'backup', permissions: ['settings.manage'] },
+            { path: '/reports/sales', label: 'Sales Reports', icon: 'bar_chart', permissions: ['reports.view.shop'] },
+            { path: '/reports/expiry', label: 'Expiry Reports', icon: 'warning', permissions: ['reports.view.warehouse', 'reports.view.shop'] },
+            { path: '/reports/tax', label: 'Tax Reports', icon: 'receipt', permissions: ['reports.view.shop'] },
         ]
     },
 ];
@@ -227,30 +356,32 @@ export default function Sidebar() {
 
     const userRole = user?.role || 'user';
     const isSuperAdmin = userRole === 'super_admin';
-    useOperationalContext();
 
-    // Check if user can see an item based on permissions or roles
-    const canSeeItem = (item: NavItemType | SubItem | OperationalNavItem): boolean => {
-        // ❌ Super Admin CANNOT see operational items (Stock Entry, POS, Billing, etc.)
+    // Check if user can see an item based on permissions
+    const canSeeItem = (item: NavItemType | SubItem): boolean => {
+        // Super Admin CANNOT see operational items (excludeFromSuperAdmin items)
         if (isSuperAdmin && 'excludeFromSuperAdmin' in item && item.excludeFromSuperAdmin) {
             return false;
         }
 
-        // ✅ If permissions are specified, check them (permission-based access)
+        // ✅ Super Admin sees ALL Super Admin items without permission checks
+        // Super Admin is the platform owner with full access to structure, masters, and visibility
+        if (isSuperAdmin) {
+            return true;
+        }
+
+        // For non-Super Admin: If permissions are specified, check them
         if (item.permissions && item.permissions.length > 0) {
             return hasAnyPermission(item.permissions);
         }
-        // Fallback to role-based check (legacy)
-        if (item.roles && item.roles.length > 0) {
-            return item.roles.includes(userRole);
-        }
+
         // No restrictions = visible to all
         return true;
     };
 
     // Auto-expand groups based on current path
     useEffect(() => {
-        const allItems = [...platformManagementItems, ...operationalItems, ...systemItems];
+        const allItems = isSuperAdmin ? superAdminItems : [...superAdminItems, ...operationalItems];
         allItems.forEach(item => {
             if (item.children) {
                 const isChildActive = item.children.some(child =>
@@ -261,7 +392,7 @@ export default function Sidebar() {
                 }
             }
         });
-    }, [location.pathname]);
+    }, [location.pathname, isSuperAdmin]);
 
     useEffect(() => {
         const savedState = localStorage.getItem('sidebarCollapsed');
@@ -326,27 +457,31 @@ export default function Sidebar() {
                     </button>
 
                     {isExpanded && (
-                        <div className="mt-1 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700 space-y-1">
+                        <div className="mt-1 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700 space-y-0.5">
                             {item.children!
                                 .filter(child => canSeeItem(child))
                                 .map((child) => (
-                                    <NavLink
-                                        key={child.path}
-                                        to={child.path}
-                                        end={child.path === item.path}
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm
-                                            ${isActive
-                                                ? 'bg-primary text-white'
-                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                                            }`
-                                        }
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">
-                                            {child.icon}
-                                        </span>
-                                        <span className="font-medium">{child.label}</span>
-                                    </NavLink>
+                                    <div key={child.path}>
+                                        {child.divider && (
+                                            <div className="my-2 border-t border-slate-200 dark:border-slate-700"></div>
+                                        )}
+                                        <NavLink
+                                            to={child.path}
+                                            end={child.path === item.path}
+                                            className={({ isActive }) =>
+                                                `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm
+                                                ${isActive
+                                                    ? 'bg-primary text-white'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                                                }`
+                                            }
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">
+                                                {child.icon}
+                                            </span>
+                                            <span className="font-medium">{child.label}</span>
+                                        </NavLink>
+                                    </div>
                                 ))}
                         </div>
                     )}
@@ -387,17 +522,16 @@ export default function Sidebar() {
         );
     };
 
-    // Get items based on permissions and role: Properly filter for Super Admin vs others
-    const getVisibleItems = () => {
-        // Start with platform management items (visible to all based on permissions)
-        const items = platformManagementItems.filter(item => canSeeItem(item));
-
-        // Add operational items ONLY if user has permissions AND is NOT Super Admin
-        const visibleOps = operationalItems.filter(item => canSeeItem(item));
-        items.push(...visibleOps);
-
-        // Note: System items are rendered separately in nav section, not here
-        return items;
+    // Get visible items based on role
+    const getVisibleItems = (): NavItemType[] => {
+        if (isSuperAdmin) {
+            // Super Admin sees ONLY the Super Admin items
+            return superAdminItems.filter(item => canSeeItem(item));
+        } else {
+            // Other roles see all items (superAdmin + operational) filtered by permissions
+            const allItems = [...superAdminItems, ...operationalItems];
+            return allItems.filter(item => canSeeItem(item));
+        }
     };
 
     return (
@@ -448,18 +582,6 @@ export default function Sidebar() {
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 no-scrollbar">
                 {getVisibleItems().map((item, index) => renderNavItem(item, index))}
-
-                {/* System Items */}
-                <div className="pt-4 border-t border-slate-200 dark:border-slate-700 mt-4">
-                    {!isCollapsed && (
-                        <p className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                            System
-                        </p>
-                    )}
-                    {systemItems
-                        .filter(item => canSeeItem(item))
-                        .map((item, index) => renderNavItem(item, index))}
-                </div>
             </nav>
 
             {/* User Profile Section */}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
-import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect } from '../components/MasterSelect';
+import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect, BrandSelect, ManufacturerSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -142,16 +142,22 @@ export default function MedicineEdit() {
                                     value={formData.generic_name}
                                     onChange={(e) => setFormData({ ...formData, generic_name: e.target.value })}
                                 />
-                                <Input
-                                    label="Brand"
-                                    value={formData.brand}
-                                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                                />
-                                <Input
-                                    label="Manufacturer"
-                                    value={formData.manufacturer}
-                                    onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Brand</label>
+                                    <BrandSelect
+                                        value={formData.brand}
+                                        onChange={(val) => setFormData({ ...formData, brand: val })}
+                                        disabled={mastersLoading}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Manufacturer</label>
+                                    <ManufacturerSelect
+                                        value={formData.manufacturer}
+                                        onChange={(val) => setFormData({ ...formData, manufacturer: val })}
+                                        disabled={mastersLoading}
+                                    />
+                                </div>
                             </div>
                         </div>
 

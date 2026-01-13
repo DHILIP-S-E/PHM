@@ -324,13 +324,16 @@ export default function Dashboard() {
                         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
                         Refresh
                     </button>
-                    <button
-                        onClick={() => navigate('/sales/pos')}
-                        className="btn btn-primary"
-                    >
-                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
-                        New Sale
-                    </button>
+                    {/* New Sale button - Only for operational users, NOT for Super Admin */}
+                    {scope !== 'global' && (
+                        <button
+                            onClick={() => navigate('/sales/pos')}
+                            className="btn btn-primary"
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
+                            New Sale
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -344,23 +347,58 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* KPI Cards - Always Visible (Global & Entity) */}
+            {/* KPI Cards - Enhanced Visualization */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpiCards.map((card) => (
+                {kpiCards.map((card, index) => (
                     <div
                         key={card.title}
-                        className="card"
+                        className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-fadeInUp"
+                        style={{ animationDelay: `${index * 100}ms` }}
                     >
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-slate-600 dark:text-slate-400" style={{ fontSize: 20 }}>
+                        {/* Gradient Background */}
+                        <div className={`absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity ${card.color === 'emerald' ? 'from-emerald-400 to-emerald-600' :
+                                card.color === 'blue' ? 'from-blue-400 to-blue-600' :
+                                    card.color === 'purple' ? 'from-purple-400 to-purple-600' :
+                                        'from-cyan-400 to-cyan-600'
+                            }`}></div>
+
+                        {/* Icon with gradient background */}
+                        <div className="flex items-start justify-between mb-4 relative">
+                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br ${card.color === 'emerald' ? 'from-emerald-400 to-emerald-600' :
+                                    card.color === 'blue' ? 'from-blue-400 to-blue-600' :
+                                        card.color === 'purple' ? 'from-purple-400 to-purple-600' :
+                                            'from-cyan-400 to-cyan-600'
+                                } group-hover:scale-110 transition-transform duration-300`}>
+                                <span className="material-symbols-outlined text-white" style={{ fontSize: 28 }}>
                                     {card.icon}
                                 </span>
                             </div>
+                            {card.trend && (
+                                <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${card.trendUp ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    }`}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                                        {card.trendUp ? 'trending_up' : 'trending_down'}
+                                    </span>
+                                    {card.trend}
+                                </div>
+                            )}
                         </div>
-                        <h4 className="text-2xl font-bold text-slate-900 dark:text-white">{card.value}</h4>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">{card.title}</p>
-                        <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
+
+                        {/* Value */}
+                        <h4 className="text-3xl font-bold text-slate-900 dark:text-white mb-1 relative">{card.value}</h4>
+
+                        {/* Title */}
+                        <p className="text-sm text-slate-600 dark:text-slate-400 font-semibold mb-1 relative">{card.title}</p>
+
+                        {/* Subtitle */}
+                        <p className="text-xs text-slate-500 dark:text-slate-500 relative">{card.subtitle}</p>
+
+                        {/* Decorative element */}
+                        <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 blur-2xl bg-gradient-to-br ${card.color === 'emerald' ? 'from-emerald-400 to-emerald-600' :
+                                card.color === 'blue' ? 'from-blue-400 to-blue-600' :
+                                    card.color === 'purple' ? 'from-purple-400 to-purple-600' :
+                                        'from-cyan-400 to-cyan-600'
+                            }`}></div>
                     </div>
                 ))}
             </div>

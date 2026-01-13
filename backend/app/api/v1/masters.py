@@ -8,7 +8,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import MedicineCategory, UnitMaster, HSNMaster, GSTSlabMaster
+from app.db.models import (
+    MedicineCategory, UnitMaster, HSNMaster, GSTSlabMaster, MedicineTypeMaster, 
+    BrandMaster, ManufacturerMaster, PaymentMethodMaster, SupplierMaster, AdjustmentReasonMaster
+)
 from app.api.v1.auth import get_current_user
 
 router = APIRouter()
@@ -285,3 +288,736 @@ async def delete_hsn_code(
     hsn.is_active = False
     db.commit()
     return {"message": "HSN code deleted"}
+
+
+# ==================== GST SLAB SCHEMAS ====================
+
+class GSTSlabBase(BaseModel):
+    rate: float = Field(ge=0, le=100)
+    description: Optional[str] = None
+
+
+class GSTSlabCreate(GSTSlabBase):
+    pass
+
+
+class GSTSlabResponse(GSTSlabBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== GST SLAB ENDPOINTS ====================
+
+@router.get("/gst-slabs", response_model=List[GSTSlabResponse])
+async def list_gst_slabs(
+    is_active: Optional[bool] = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all GST slabs"""
+    query = db.query(GSTSlabMaster)
+    if is_active is not None:
+        query = query.filter(GSTSlabMaster.is_active == is_active)
+    return query.order_by(GSTSlabMaster.rate).all()
+
+
+@router.post("/gst-slabs", response_model=GSTSlabResponse)
+async def create_gst_slab(
+    data: GSTSlabCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new GST slab"""
+    existing = db.query(GSTSlabMaster).filter(GSTSlabMaster.rate == data.rate).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"GST slab with rate {data.rate}% already exists")
+    
+    # Calculate CGST, SGST, IGST from total rate
+    slab = GSTSlabMaster(
+        rate=data.rate,
+        description=data.description,
+        cgst_rate=data.rate / 2,
+        sgst_rate=data.rate / 2,
+        igst_rate=data.rate
+    )
+    db.add(slab)
+    db.commit()
+    db.refresh(slab)
+    return slab
+
+
+@router.put("/gst-slabs/{slab_id}", response_model=GSTSlabResponse)
+async def update_gst_slab(
+    slab_id: str,
+    data: GSTSlabBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a GST slab"""
+    slab = db.query(GSTSlabMaster).filter(GSTSlabMaster.id == slab_id).first()
+    if not slab:
+        raise HTTPException(status_code=404, detail="GST slab not found")
+    
+    # Check if new rate conflicts with existing
+    if data.rate != slab.rate:
+        existing = db.query(GSTSlabMaster).filter(
+            GSTSlabMaster.rate == data.rate,
+            GSTSlabMaster.id != slab_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"GST slab with rate {data.rate}% already exists")
+    
+    # Update fields and recalculate derived rates
+    slab.rate = data.rate
+    slab.description = data.description
+    slab.cgst_rate = data.rate / 2
+    slab.sgst_rate = data.rate / 2
+    slab.igst_rate = data.rate
+    
+    db.commit()
+    db.refresh(slab)
+    return slab
+
+
+@router.delete("/gst-slabs/{slab_id}")
+async def delete_gst_slab(
+    slab_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a GST slab"""
+    slab = db.query(GSTSlabMaster).filter(GSTSlabMaster.id == slab_id).first()
+    if not slab:
+        raise HTTPException(status_code=404, detail="GST slab not found")
+    
+    # Check if slab is in use by any HSN code
+    # (In production, you'd check if any HSN codes reference this slab)
+    
+    slab.is_active = False
+    db.commit()
+    return {"message": "GST slab deleted"}
+
+
+# ==================== MEDICINE TYPE SCHEMAS ====================
+
+class MedicineTypeBase(BaseModel):
+    code: str = Field(min_length=1, max_length=20)
+    name: str = Field(min_length=1, max_length=50)
+    description: Optional[str] = None
+    sort_order: int = 0
+
+
+class MedicineTypeCreate(MedicineTypeBase):
+    pass
+
+
+class MedicineTypeResponse(MedicineTypeBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== MEDICINE TYPE ENDPOINTS ====================
+
+@router.get("/medicine-types", response_model=List[MedicineTypeResponse])
+async def list_medicine_types(
+    is_active: Optional[bool] = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all medicine types"""
+    query = db.query(MedicineTypeMaster)
+    if is_active is not None:
+        query = query.filter(MedicineTypeMaster.is_active == is_active)
+    return query.order_by(MedicineTypeMaster.sort_order).all()
+
+
+@router.post("/medicine-types", response_model=MedicineTypeResponse)
+async def create_medicine_type(
+    data: MedicineTypeCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new medicine type"""
+    existing = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.code == data.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Medicine type code already exists")
+    
+    medicine_type = MedicineTypeMaster(**data.dict())
+    db.add(medicine_type)
+    db.commit()
+    db.refresh(medicine_type)
+    return medicine_type
+
+
+@router.put("/medicine-types/{type_id}", response_model=MedicineTypeResponse)
+async def update_medicine_type(
+    type_id: str,
+    data: MedicineTypeBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a medicine type"""
+    medicine_type = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.id == type_id).first()
+    if not medicine_type:
+        raise HTTPException(status_code=404, detail="Medicine type not found")
+    
+    # Check for duplicate code if changing
+    if data.code != medicine_type.code:
+        existing = db.query(MedicineTypeMaster).filter(
+            MedicineTypeMaster.code == data.code,
+            MedicineTypeMaster.id != type_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Medicine type code already exists")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(medicine_type, key, value)
+    
+    db.commit()
+    db.refresh(medicine_type)
+    return medicine_type
+
+
+@router.delete("/medicine-types/{type_id}")
+async def delete_medicine_type(
+    type_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a medicine type"""
+    medicine_type = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.id == type_id).first()
+    if not medicine_type:
+        raise HTTPException(status_code=404, detail="Medicine type not found")
+    
+    medicine_type.is_active = False
+    db.commit()
+    return {"message": "Medicine type deleted"}
+
+
+# ==================== BRAND SCHEMAS ====================
+
+class BrandBase(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=100)
+    description: Optional[str] = None
+    sort_order: int = 0
+
+
+class BrandCreate(BrandBase):
+    pass
+
+
+class BrandResponse(BrandBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== BRAND ENDPOINTS ====================
+
+@router.get("/brands", response_model=List[BrandResponse])
+async def list_brands(
+    is_active: Optional[bool] = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all brands"""
+    query = db.query(BrandMaster)
+    if is_active is not None:
+        query = query.filter(BrandMaster.is_active == is_active)
+    return query.order_by(BrandMaster.name).all()
+
+
+@router.post("/brands", response_model=BrandResponse)
+async def create_brand(
+    data: BrandCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new brand"""
+    existing = db.query(BrandMaster).filter(BrandMaster.code == data.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Brand code already exists")
+    
+    brand = BrandMaster(**data.dict())
+    db.add(brand)
+    db.commit()
+    db.refresh(brand)
+    return brand
+
+
+@router.put("/brands/{brand_id}", response_model=BrandResponse)
+async def update_brand(
+    brand_id: str,
+    data: BrandBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a brand"""
+    brand = db.query(BrandMaster).filter(BrandMaster.id == brand_id).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    
+    # Check for duplicate code if changing
+    if data.code != brand.code:
+        existing = db.query(BrandMaster).filter(
+            BrandMaster.code == data.code,
+            BrandMaster.id != brand_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Brand code already exists")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(brand, key, value)
+    
+    db.commit()
+    db.refresh(brand)
+    return brand
+
+
+@router.delete("/brands/{brand_id}")
+async def delete_brand(
+    brand_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a brand"""
+    brand = db.query(BrandMaster).filter(BrandMaster.id == brand_id).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    
+    brand.is_active = False
+    db.commit()
+    return {"message": "Brand deleted"}
+
+
+# ==================== MANUFACTURER SCHEMAS ====================
+
+class ManufacturerBase(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=200)
+    address: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    sort_order: int = 0
+
+
+class ManufacturerCreate(ManufacturerBase):
+    pass
+
+
+class ManufacturerResponse(ManufacturerBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== MANUFACTURER ENDPOINTS ====================
+
+@router.get("/manufacturers", response_model=List[ManufacturerResponse])
+async def list_manufacturers(
+    is_active: Optional[bool] = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all manufacturers"""
+    query = db.query(ManufacturerMaster)
+    if is_active is not None:
+        query = query.filter(ManufacturerMaster.is_active == is_active)
+    return query.order_by(ManufacturerMaster.name).all()
+
+
+@router.post("/manufacturers", response_model=ManufacturerResponse)
+async def create_manufacturer(
+    data: ManufacturerCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new manufacturer"""
+    existing = db.query(ManufacturerMaster).filter(ManufacturerMaster.code == data.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Manufacturer code already exists")
+    
+    manufacturer = ManufacturerMaster(**data.dict())
+    db.add(manufacturer)
+    db.commit()
+    db.refresh(manufacturer)
+    return manufacturer
+
+
+@router.put("/manufacturers/{manufacturer_id}", response_model=ManufacturerResponse)
+async def update_manufacturer(
+    manufacturer_id: str,
+    data: ManufacturerBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a manufacturer"""
+    manufacturer = db.query(ManufacturerMaster).filter(ManufacturerMaster.id == manufacturer_id).first()
+    if not manufacturer:
+        raise HTTPException(status_code=404, detail="Manufacturer not found")
+    
+    # Check for duplicate code if changing
+    if data.code != manufacturer.code:
+        existing = db.query(ManufacturerMaster).filter(
+            ManufacturerMaster.code == data.code,
+            ManufacturerMaster.id != manufacturer_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Manufacturer code already exists")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(manufacturer, key, value)
+    
+    db.commit()
+    db.refresh(manufacturer)
+    return manufacturer
+
+
+@router.delete("/manufacturers/{manufacturer_id}")
+async def delete_manufacturer(
+    manufacturer_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a manufacturer"""
+    manufacturer = db.query(ManufacturerMaster).filter(ManufacturerMaster.id == manufacturer_id).first()
+    if not manufacturer:
+        raise HTTPException(status_code=404, detail="Manufacturer not found")
+    
+    manufacturer.is_active = False
+    db.commit()
+    return {"message": "Manufacturer deleted"}
+
+
+# ==================== PAYMENT METHOD SCHEMAS ====================
+
+class PaymentMethodBase(BaseModel):
+    code: str = Field(min_length=1, max_length=20)
+    name: str = Field(min_length=1, max_length=50)
+    icon: Optional[str] = None
+    sort_order: int = 0
+
+
+class PaymentMethodCreate(PaymentMethodBase):
+    pass
+
+
+class PaymentMethodResponse(PaymentMethodBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== PAYMENT METHOD ENDPOINTS ====================
+
+@router.get("/payment-methods", response_model=List[PaymentMethodResponse])
+async def list_payment_methods(
+    is_active: Optional[bool] = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all payment methods"""
+    query = db.query(PaymentMethodMaster)
+    if is_active is not None:
+        query = query.filter(PaymentMethodMaster.is_active == is_active)
+    return query.order_by(PaymentMethodMaster.sort_order).all()
+
+
+@router.post("/payment-methods", response_model=PaymentMethodResponse)
+async def create_payment_method(
+    data: PaymentMethodCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new payment method"""
+    existing = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.code == data.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Payment method code already exists")
+    
+    payment_method = PaymentMethodMaster(**data.dict())
+    db.add(payment_method)
+    db.commit()
+    db.refresh(payment_method)
+    return payment_method
+
+
+@router.put("/payment-methods/{method_id}", response_model=PaymentMethodResponse)
+async def update_payment_method(
+    method_id: str,
+    data: PaymentMethodBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a payment method"""
+    payment_method = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.id == method_id).first()
+    if not payment_method:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    
+    if data.code != payment_method.code:
+        existing = db.query(PaymentMethodMaster).filter(
+            PaymentMethodMaster.code == data.code,
+            PaymentMethodMaster.id != method_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Payment method code already exists")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(payment_method, key, value)
+    
+    db.commit()
+    db.refresh(payment_method)
+    return payment_method
+
+
+@router.delete("/payment-methods/{method_id}")
+async def delete_payment_method(
+    method_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a payment method"""
+    payment_method = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.id == method_id).first()
+    if not payment_method:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    
+    payment_method.is_active = False
+    db.commit()
+    return {"message": "Payment method deleted"}
+
+
+# ==================== SUPPLIER SCHEMAS ====================
+
+class SupplierBase(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=200)
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    gst_number: Optional[str] = None
+    drug_license: Optional[str] = None
+    credit_days: int = 0
+    sort_order: int = 0
+
+
+class SupplierCreate(SupplierBase):
+    pass
+
+
+class SupplierResponse(SupplierBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== SUPPLIER ENDPOINTS ====================
+
+@router.get("/suppliers", response_model=List[SupplierResponse])
+async def list_suppliers(
+    is_active: Optional[bool] = True,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all suppliers"""
+    query = db.query(SupplierMaster)
+    if is_active is not None:
+        query = query.filter(SupplierMaster.is_active == is_active)
+    return query.order_by(SupplierMaster.name).all()
+
+
+@router.post("/suppliers", response_model=SupplierResponse)
+async def create_supplier(
+    data: SupplierCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new supplier"""
+    existing = db.query(SupplierMaster).filter(SupplierMaster.code == data.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Supplier code already exists")
+    
+    supplier = SupplierMaster(**data.dict())
+    db.add(supplier)
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+@router.put("/suppliers/{supplier_id}", response_model=SupplierResponse)
+async def update_supplier(
+    supplier_id: str,
+    data: SupplierBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a supplier"""
+    supplier = db.query(SupplierMaster).filter(SupplierMaster.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    if data.code != supplier.code:
+        existing = db.query(SupplierMaster).filter(
+            SupplierMaster.code == data.code,
+            SupplierMaster.id != supplier_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Supplier code already exists")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(supplier, key, value)
+    
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+@router.delete("/suppliers/{supplier_id}")
+async def delete_supplier(
+    supplier_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a supplier"""
+    supplier = db.query(SupplierMaster).filter(SupplierMaster.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    supplier.is_active = False
+    db.commit()
+    return {"message": "Supplier deleted"}
+
+
+# ==================== ADJUSTMENT REASON SCHEMAS ====================
+
+class AdjustmentReasonBase(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=100)
+    adjustment_type: str = Field(min_length=1, max_length=20)  # "increase" or "decrease"
+    description: Optional[str] = None
+    sort_order: int = 0
+
+
+class AdjustmentReasonCreate(AdjustmentReasonBase):
+    pass
+
+
+class AdjustmentReasonResponse(AdjustmentReasonBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==================== ADJUSTMENT REASON ENDPOINTS ====================
+
+@router.get("/adjustment-reasons", response_model=List[AdjustmentReasonResponse])
+async def list_adjustment_reasons(
+    is_active: Optional[bool] = True,
+    adjustment_type: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all adjustment reasons"""
+    query = db.query(AdjustmentReasonMaster)
+    if is_active is not None:
+        query = query.filter(AdjustmentReasonMaster.is_active == is_active)
+    if adjustment_type:
+        query = query.filter(AdjustmentReasonMaster.adjustment_type == adjustment_type)
+    return query.order_by(AdjustmentReasonMaster.sort_order).all()
+
+
+@router.post("/adjustment-reasons", response_model=AdjustmentReasonResponse)
+async def create_adjustment_reason(
+    data: AdjustmentReasonCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new adjustment reason"""
+    # Validate adjustment_type
+    if data.adjustment_type not in ["increase", "decrease"]:
+        raise HTTPException(status_code=400, detail="adjustment_type must be 'increase' or 'decrease'")
+    
+    existing = db.query(AdjustmentReasonMaster).filter(AdjustmentReasonMaster.code == data.code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Adjustment reason code already exists")
+    
+    reason = AdjustmentReasonMaster(**data.dict())
+    db.add(reason)
+    db.commit()
+    db.refresh(reason)
+    return reason
+
+
+@router.put("/adjustment-reasons/{reason_id}", response_model=AdjustmentReasonResponse)
+async def update_adjustment_reason(
+    reason_id: str,
+    data: AdjustmentReasonBase,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an adjustment reason"""
+    if data.adjustment_type not in ["increase", "decrease"]:
+        raise HTTPException(status_code=400, detail="adjustment_type must be 'increase' or 'decrease'")
+    
+    reason = db.query(AdjustmentReasonMaster).filter(AdjustmentReasonMaster.id == reason_id).first()
+    if not reason:
+        raise HTTPException(status_code=404, detail="Adjustment reason not found")
+    
+    if data.code != reason.code:
+        existing = db.query(AdjustmentReasonMaster).filter(
+            AdjustmentReasonMaster.code == data.code,
+            AdjustmentReasonMaster.id != reason_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Adjustment reason code already exists")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(reason, key, value)
+    
+    db.commit()
+    db.refresh(reason)
+    return reason
+
+
+@router.delete("/adjustment-reasons/{reason_id}")
+async def delete_adjustment_reason(
+    reason_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete an adjustment reason"""
+    reason = db.query(AdjustmentReasonMaster).filter(AdjustmentReasonMaster.id == reason_id).first()
+    if not reason:
+        raise HTTPException(status_code=404, detail="Adjustment reason not found")
+    
+    reason.is_active = False
+    db.commit()
+    return {"message": "Adjustment reason deleted"}

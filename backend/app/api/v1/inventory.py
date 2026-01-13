@@ -85,7 +85,7 @@ class StockEntry(BaseModel):
 async def create_stock_entry(
     entry: StockEntry,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
+    current_user = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
     """
     Add stock entry to warehouse.
@@ -100,8 +100,8 @@ async def create_stock_entry(
     from app.db.models import WarehouseStock, Warehouse
     
     # ENTITY CONTEXT ENFORCEMENT
-    user_role = current_user.get("role")
-    assigned_warehouse_id = current_user.get("assigned_warehouse_id")
+    user_role = current_user.role
+    assigned_warehouse_id = current_user.warehouse_id
     
     if user_role != "super_admin":
         # Non-Super Admin: MUST use their assigned warehouse
