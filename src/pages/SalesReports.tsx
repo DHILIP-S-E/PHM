@@ -289,9 +289,9 @@ export default function SalesReports() {
             `}</style>
 
             <div className="page-header">
-                <h1>📊 Sales Reports</h1>
+                <h1>Sales Reports</h1>
                 <button className="btn-export" onClick={exportReport}>
-                    📥 Export CSV
+                    Export CSV
                 </button>
             </div>
 
@@ -408,7 +408,7 @@ export default function SalesReports() {
                             <div className="stat-label">Items Sold</div>
                         </div>
                         <div className="stat-card">
-                            <div className="stat-icon">📈</div>
+                            <div className="stat-icon"></div>
                             <div className="stat-value">{formatCurrency(salesData?.average_order_value || 0)}</div>
                             <div className="stat-label">Avg Order Value</div>
                         </div>

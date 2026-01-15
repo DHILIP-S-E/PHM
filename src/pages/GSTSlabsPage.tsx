@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -20,6 +21,7 @@ interface GSTSlab {
 
 export default function GSTSlabsPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const { refresh } = useMasterData();
 
@@ -31,12 +33,12 @@ export default function GSTSlabsPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    // Access Control: Only Super Admin can access
+    // Access Control: Check permission
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('gst.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -112,10 +114,12 @@ export default function GSTSlabsPage() {
                 { label: 'GST Slabs', path: undefined }
             ]}
             actions={
-                <Button variant="primary" onClick={openCreateModal}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add GST Slab
-                </Button>
+                hasPermission('gst.create') && (
+                    <Button variant="primary" onClick={openCreateModal}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add GST Slab
+                    </Button>
+                )
             }
         >
             <div className="max-w-4xl mx-auto space-y-6">
@@ -134,7 +138,7 @@ export default function GSTSlabsPage() {
                 </div>
 
                 {/* Quick Add Common Rates */}
-                {slabs.length === 0 && !loading && (
+                {slabs.length === 0 && !loading && hasPermission('gst.create') && (
                     <Card title="Quick Setup" icon="bolt">
                         <p className="text-slate-600 dark:text-slate-400 mb-4">
                             Click to quickly add standard GST slabs:
@@ -172,9 +176,11 @@ export default function GSTSlabsPage() {
                             <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">percent</span>
                             <h3 className="text-lg font-medium text-slate-900 dark:text-white">No GST Slabs</h3>
                             <p className="text-slate-500 dark:text-slate-400 mt-1">Create GST slabs to enable HSN codes and medicines</p>
-                            <Button variant="primary" className="mt-4" onClick={openCreateModal}>
-                                Add First GST Slab
-                            </Button>
+                            {hasPermission('gst.create') && (
+                                <Button variant="primary" className="mt-4" onClick={openCreateModal}>
+                                    Add First GST Slab
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <table className="w-full">
@@ -210,12 +216,16 @@ export default function GSTSlabsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex justify-center gap-1">
-                                                <Button variant="secondary" onClick={() => openEditModal(slab)} className="!p-1.5">
-                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                </Button>
-                                                <Button variant="secondary" onClick={() => handleDelete(slab)} className="!p-1.5 text-red-600">
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </Button>
+                                                {hasPermission('gst.edit') && (
+                                                    <Button variant="secondary" onClick={() => openEditModal(slab)} className="!p-1.5">
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                    </Button>
+                                                )}
+                                                {hasPermission('gst.delete') && (
+                                                    <Button variant="secondary" onClick={() => handleDelete(slab)} className="!p-1.5 text-red-600">
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

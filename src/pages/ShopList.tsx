@@ -6,7 +6,7 @@ import { StatusSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Table, { type Column } from '../components/Table';
 import Button from '../components/Button';
-import Input from '../components/Input';
+import SearchBar from '../components/SearchBar';
 import Badge from '../components/Badge';
 
 interface Shop {
@@ -156,34 +156,31 @@ export default function ShopList() {
             description={`Manage ${totalItems} retail pharmacy locations`}
             icon="storefront"
             actions={
-                <Button variant="primary" onClick={() => navigate('/shops/add')}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Shop
-                </Button>
-            }
-        >
-            <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex-1">
-                        <Input
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="min-w-[250px]">
+                        <SearchBar
                             placeholder="Search shops..."
                             value={search}
-                            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                            className="w-full"
+                            onChange={(val) => { setSearch(val); setCurrentPage(1); }}
                         />
                     </div>
-                    <div className="w-full sm:w-[200px]">
-                        <StatusSelect
-                            entityType="shop"
-                            value={statusFilter}
-                            onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
-                            placeholder="All Status"
-                        />
-                    </div>
+                    <StatusSelect
+                        entityType="shop"
+                        value={statusFilter}
+                        onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                        placeholder="All Status"
+                    />
                     <Button variant="secondary" onClick={fetchShops}>
                         <span className="material-symbols-outlined">refresh</span>
                     </Button>
+                    <Button variant="primary" onClick={() => navigate('/shops/add')}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Shop
+                    </Button>
                 </div>
+            }
+        >
+            <div className="space-y-6">
 
                 <Table
                     columns={columns}

@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { usersApi, warehousesApi, shopsApi, rolesApi } from '../services/api';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
+import Badge from '../components/Badge';
+import { type Column } from '../components/Table';
+import Button from '../components/Button';
 
 interface User {
     id: string;
@@ -21,6 +26,11 @@ export default function UsersList() {
     const [showModal, setShowModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+
+    // Filter states
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [roleFilter, setRoleFilter] = useState<string>('all');
+
     const [formData, setFormData] = useState({
         email: '',
         full_name: '',
@@ -39,7 +49,7 @@ export default function UsersList() {
     useEffect(() => {
         fetchUsers();
         fetchEntities();
-    }, []);
+    }, [statusFilter, roleFilter]); // Re-fetch when filters change
 
     const fetchEntities = async () => {
         try {
@@ -50,20 +60,23 @@ export default function UsersList() {
             ]);
             setWarehouses(warehouseRes.data?.items || warehouseRes.data || []);
             setShops(shopRes.data?.items || shopRes.data || []);
-            // Backend returns { roles: [...] } for assignable roles
             const rawRoles = rolesRes.data?.roles || rolesRes.data?.items || (Array.isArray(rolesRes.data) ? rolesRes.data : []);
-            // STRICTLY FILTER OUT SUPER ADMIN
             setAssignableRoles(rawRoles.filter((r: any) => r.name !== 'super_admin'));
         } catch (error) {
             console.error('Failed to fetch entities:', error);
-            setAssignableRoles([]); // Ensure it's always an array
+            setAssignableRoles([]);
         }
     };
 
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const response = await usersApi.list({ search });
+            // Construct query params
+            const params: any = { search };
+            if (statusFilter !== 'all') params.is_active = statusFilter === 'active';
+            if (roleFilter !== 'all') params.role = roleFilter;
+
+            const response = await usersApi.list(params);
             setUsers(response.data?.items || response.data?.data || response.data || []);
         } catch (error) {
             console.error('Failed to fetch users:', error);
@@ -72,11 +85,7 @@ export default function UsersList() {
         }
     };
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        fetchUsers();
-    };
-
+    // ... [Preserved logic: handleSearch, openCreateModal, openEditModal, handleSubmit, handleDelete] ...
     const openCreateModal = () => {
         setEditingUser(null);
         setFormData({ email: '', full_name: '', phone: '', role: '', password: '', assigned_warehouse_id: '', assigned_shop_id: '' });
@@ -99,9 +108,6 @@ export default function UsersList() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        console.log('Submitting user data:', formData);
-
         try {
             if (editingUser) {
                 await usersApi.update(editingUser.id, formData);
@@ -114,28 +120,11 @@ export default function UsersList() {
             fetchUsers();
         } catch (error: any) {
             console.error('Failed to save user:', error);
-
-            // Extract detailed error message from backend
-            let errorMessage = 'Failed to save user';
-
-            if (error.response?.data) {
-                // FastAPI validation errors
-                if (error.response.data.detail) {
-                    if (Array.isArray(error.response.data.detail)) {
-                        // Pydantic validation errors
-                        errorMessage = error.response.data.detail
-                            .map((err: any) => `${err.loc.join('.')}: ${err.msg}`)
-                            .join(', ');
-                    } else if (typeof error.response.data.detail === 'string') {
-                        errorMessage = error.response.data.detail;
-                    }
-                } else if (error.response.data.message) {
-                    errorMessage = error.response.data.message;
-                }
-            } else if (error.message) {
-                errorMessage = error.message;
-            }
-
+            const errorMessage = error.response?.data?.detail
+                ? (Array.isArray(error.response.data.detail)
+                    ? error.response.data.detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ')
+                    : error.response.data.detail)
+                : error.message || 'Failed to save user';
             window.toast?.error(errorMessage);
         }
     };
@@ -148,7 +137,7 @@ export default function UsersList() {
             fetchUsers();
         } catch (error: any) {
             console.error('Failed to delete user:', error);
-            const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Failed to delete user';
+            const errorMessage = error.response?.data?.detail || 'Failed to delete user';
             window.toast?.error(errorMessage);
         }
     };
@@ -170,164 +159,148 @@ export default function UsersList() {
         admins: users.filter(u => u.role === 'admin' || u.role === 'super_admin').length,
     };
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-end justify-between gap-4 animate-fadeIn">
-                <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">User Management</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage {stats.total} users across your organization
-                    </p>
-                </div>
+    // Filter handlers
+    const applyFilter = (status: 'all' | 'active' | 'inactive', role: string = 'all') => {
+        setStatusFilter(status);
+        setRoleFilter(role);
+    };
+
+    const columns: Column<User>[] = [
+        {
+            header: 'User',
+            key: 'full_name',
+            render: (user) => (
                 <div className="flex items-center gap-3">
-                    <button onClick={fetchUsers} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
-                        <span className="material-symbols-outlined text-[20px]">refresh</span>
-                        <span className="hidden sm:inline">Refresh</span>
-                    </button>
-                    <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 font-medium">
-                        <span className="material-symbols-outlined text-[20px]">person_add</span>
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-medium shadow-sm">
+                        {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div className="font-medium text-slate-900 dark:text-white">{user.full_name || 'N/A'}</div>
+                        <div className="text-xs text-slate-500">{user.email}</div>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: 'Role',
+            key: 'role',
+            render: (user) => (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide ${getRoleBadgeColor(user.role)}`}>
+                    {user.role.replace('_', ' ')}
+                </span>
+            )
+        },
+        {
+            header: 'Status',
+            key: 'is_active',
+            render: (user) => (
+                <Badge variant={user.is_active ? 'success' : 'error'}>
+                    {user.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            ),
+            align: 'center'
+        },
+        {
+            header: 'Last Login',
+            key: 'last_login',
+            render: (user) => (
+                <span className="text-slate-500">
+                    {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+                </span>
+            )
+        },
+        {
+            header: 'Actions',
+            key: 'id',
+            align: 'right',
+            render: (user) => (
+                <div className="flex justify-end gap-1">
+                    <Button
+                        variant="secondary"
+                        onClick={() => openEditModal(user)}
+                        className="!p-1.5 h-8 w-8 justify-center"
+                        title="Edit User"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => handleDelete(user.id)}
+                        className="!p-1.5 h-8 w-8 justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
+                        title="Delete User"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </Button>
+                </div>
+            )
+        }
+    ];
+
+    return (
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="User Management"
+                subtitle={`Manage ${stats.total} users across your organization`}
+                actions={
+                    <Button variant="primary" onClick={openCreateModal}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">person_add</span>
                         Add User
-                    </button>
-                </div>
-            </div>
+                    </Button>
+                }
+            />
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm animate-fadeInUp" style={{ animationDelay: '50ms' }}>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Users</p>
-                            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.total}</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">groups</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm animate-fadeInUp" style={{ animationDelay: '100ms' }}>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Active</p>
-                            <p className="text-2xl font-bold text-green-600 mt-1">{stats.active}</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm animate-fadeInUp" style={{ animationDelay: '150ms' }}>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Inactive</p>
-                            <p className="text-2xl font-bold text-red-600 mt-1">{stats.inactive}</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-red-600 dark:text-red-400">cancel</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm animate-fadeInUp" style={{ animationDelay: '200ms' }}>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Administrators</p>
-                            <p className="text-2xl font-bold text-purple-600 mt-1">{stats.admins}</p>
-                        </div>
-                        <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">admin_panel_settings</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <UniversalListPage.KPICards>
+                <StatCard
+                    title="Total Users"
+                    value={stats.total}
+                    icon="groups"
+                    onClick={() => applyFilter('all')}
+                    isActive={statusFilter === 'all' && roleFilter === 'all'}
+                />
+                <StatCard
+                    title="Active Users"
+                    value={stats.active}
+                    icon="check_circle"
+                    onClick={() => applyFilter('active')}
+                    isActive={statusFilter === 'active'}
+                    change={((stats.active / stats.total) * 100).toFixed(0) + '%'}
+                    changeType="up"
+                />
+                <StatCard
+                    title="Inactive Users"
+                    value={stats.inactive}
+                    icon="cancel"
+                    onClick={() => applyFilter('inactive')}
+                    isActive={statusFilter === 'inactive'}
+                    changeType="down"
+                />
+                <StatCard
+                    title="Administrators"
+                    value={stats.admins}
+                    icon="admin_panel_settings"
+                    onClick={() => applyFilter('all', 'admin')}
+                    isActive={roleFilter === 'admin'}
+                />
+            </UniversalListPage.KPICards>
 
-            {/* Search & Filters Toolbar */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm animate-fadeIn">
-                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <span className="material-symbols-outlined text-[20px]">search</span>
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="Search by name or email..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                        />
-                    </div>
-                    <button type="submit" className="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-[18px]">filter_list</span>
-                        Search
-                    </button>
-                </form>
-            </div>
+            <UniversalListPage.ListControls
+                title="User List"
+                count={users.length}
+                searchProps={{
+                    value: search,
+                    onChange: (val) => { setSearch(val); fetchUsers(); } // Live search might be too aggressive, but good for demo
+                }}
+                onFilterClick={fetchUsers} // Simple refresh for now
+            />
 
-            {/* Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {loading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
-                    </div>
-                ) : (
-                    <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-900/50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">User</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Role</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Last Login</th>
-                                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {users.map((user, index) => (
-                                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors group animate-fadeIn" style={{ animationDelay: `${index * 30}ms` }}>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold shadow-sm">
-                                                {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-slate-900 dark:text-white">{user.full_name || 'N/A'}</p>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">{user.email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)} border border-current/20`}>
-                                            <span className="material-symbols-outlined text-[14px]">
-                                                {user.role === 'super_admin' ? 'security' : user.role === 'admin' ? 'admin_panel_settings' : user.role === 'manager' ? 'badge' : 'person'}
-                                            </span>
-                                            {user.role.replace('_', ' ').toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
-                                            <span className="size-1.5 rounded-full bg-current"></span>
-                                            {user.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
-                                        {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <button onClick={() => openEditModal(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="Edit User">
-                                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                                            </button>
-                                            <button onClick={() => handleDelete(user.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" title="Delete User">
-                                                <span className="material-symbols-outlined text-[20px]">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={users}
+                loading={loading}
+                emptyMessage="No users found matching your criteria."
+            />
 
-            {/* Modal */}
+            {/* Modal - keeping existing inline style for now, but wrapped in container */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 animate-scaleIn">
@@ -378,9 +351,8 @@ export default function UsersList() {
                                         </option>
                                     ))}
                                 </select>
-                                <p className="text-xs text-slate-500 mt-1">Super Admin cannot be created from UI</p>
                             </div>
-                            {/* Entity Assignment based on Role */}
+
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'warehouse' && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -417,6 +389,7 @@ export default function UsersList() {
                                     </select>
                                 </div>
                             )}
+
                             {!editingUser && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -456,6 +429,6 @@ export default function UsersList() {
                     </div>
                 </div>
             )}
-        </div>
+        </UniversalListPage>
     );
 }

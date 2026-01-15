@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 
 interface Category {
     id: string;
@@ -14,6 +15,7 @@ interface Category {
 
 export default function CategoriesPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
@@ -28,12 +30,12 @@ export default function CategoriesPage() {
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Access Control: Only Super Admin can access
+    // Access Control: Check permission
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('categories.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => {
         loadData();
@@ -130,13 +132,15 @@ export default function CategoriesPage() {
                         Manage medicine categories and subcategories.
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add Category
-                </button>
+                {hasPermission('categories.create') && (
+                    <button
+                        onClick={openCreateModal}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        Add Category
+                    </button>
+                )}
             </div>
 
             {/* Stats */}
@@ -268,18 +272,22 @@ export default function CategoriesPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center gap-1">
-                                            <button
-                                                onClick={() => openEditModal(category)}
-                                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">edit</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(category)}
-                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
+                                            {hasPermission('categories.edit') && (
+                                                <button
+                                                    onClick={() => openEditModal(category)}
+                                                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </button>
+                                            )}
+                                            {hasPermission('categories.delete') && (
+                                                <button
+                                                    onClick={() => handleDelete(category)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

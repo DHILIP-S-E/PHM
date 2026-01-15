@@ -17,6 +17,7 @@ from app.db.models import (
     SupplierMaster, AdjustmentReasonMaster
 )
 from app.api.v1.auth import get_current_user
+from app.core.security import require_permission, AuthContext
 
 router = APIRouter()
 
@@ -398,7 +399,7 @@ async def get_all_masters(
 async def list_payment_methods(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.view"]))
 ):
     query = db.query(PaymentMethodMaster)
     if is_active is not None:
@@ -417,7 +418,7 @@ class PaymentMethodCreate(BaseModel):
 async def create_payment_method(
     data: PaymentMethodCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.create"]))
 ):
     existing = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.code == data.code).first()
     if existing:
@@ -435,7 +436,7 @@ async def update_payment_method(
     item_id: str,
     data: PaymentMethodCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.update", "payment_methods.edit"]))
 ):
     item = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.id == item_id).first()
     if not item:
@@ -453,7 +454,7 @@ async def update_payment_method(
 async def delete_payment_method(
     item_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.delete"]))
 ):
     item = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.id == item_id).first()
     if not item:
@@ -469,7 +470,7 @@ async def delete_payment_method(
 async def list_shop_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["shop_types.view"]))
 ):
     query = db.query(ShopTypeMaster)
     if is_active is not None:
@@ -488,7 +489,7 @@ class ShopTypeCreate(BaseModel):
 async def create_shop_type(
     data: ShopTypeCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["shop_types.create"]))
 ):
     existing = db.query(ShopTypeMaster).filter(ShopTypeMaster.code == data.code).first()
     if existing:
@@ -506,7 +507,7 @@ async def update_shop_type(
     item_id: str,
     data: ShopTypeCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["shop_types.update", "shop_types.edit"]))
 ):
     item = db.query(ShopTypeMaster).filter(ShopTypeMaster.id == item_id).first()
     if not item:
@@ -524,7 +525,7 @@ async def update_shop_type(
 async def delete_shop_type(
     item_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["shop_types.delete"]))
 ):
     item = db.query(ShopTypeMaster).filter(ShopTypeMaster.id == item_id).first()
     if not item:
@@ -540,7 +541,7 @@ async def delete_shop_type(
 async def list_customer_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["customer_types.view"]))
 ):
     query = db.query(CustomerTypeMaster)
     if is_active is not None:
@@ -560,7 +561,7 @@ class CustomerTypeCreate(BaseModel):
 async def create_customer_type(
     data: CustomerTypeCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["customer_types.create"]))
 ):
     existing = db.query(CustomerTypeMaster).filter(CustomerTypeMaster.code == data.code).first()
     if existing:
@@ -578,7 +579,7 @@ async def create_customer_type(
 async def list_medicine_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["medicine_types.view"]))
 ):
     query = db.query(MedicineTypeMaster)
     if is_active is not None:
@@ -597,7 +598,7 @@ class MedicineTypeCreate(BaseModel):
 async def create_medicine_type(
     data: MedicineTypeCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["medicine_types.create"]))
 ):
     existing = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.code == data.code).first()
     if existing:
@@ -615,7 +616,7 @@ async def create_medicine_type(
 async def list_gst_slabs(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["gst.view"]))
 ):
     query = db.query(GSTSlabMaster)
     if is_active is not None:
@@ -632,7 +633,7 @@ class GSTSlabCreate(BaseModel):
 async def create_gst_slab(
     data: GSTSlabCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["gst.create"]))
 ):
     existing = db.query(GSTSlabMaster).filter(GSTSlabMaster.rate == data.rate).first()
     if existing:
@@ -656,7 +657,7 @@ async def create_gst_slab(
 async def list_genders(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["genders.view"]))
 ):
     query = db.query(GenderMaster)
     if is_active is not None:
@@ -669,7 +670,7 @@ async def list_genders(
 async def list_employment_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["employment_types.view"]))
 ):
     query = db.query(EmploymentTypeMaster)
     if is_active is not None:
@@ -682,7 +683,7 @@ async def list_employment_types(
 async def list_urgency_levels(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["urgency_levels.view"]))
 ):
     query = db.query(UrgencyMaster)
     if is_active is not None:
@@ -696,7 +697,7 @@ async def list_statuses(
     entity_type: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["statuses.view"]))
 ):
     query = db.query(StatusMaster)
     if entity_type:
@@ -711,7 +712,7 @@ async def list_statuses(
 async def list_designations(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["designations.view"]))
 ):
     query = db.query(DesignationMaster)
     if is_active is not None:
@@ -730,7 +731,7 @@ class DesignationCreate(BaseModel):
 async def create_designation(
     data: DesignationCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["designations.create"]))
 ):
     existing = db.query(DesignationMaster).filter(DesignationMaster.code == data.code).first()
     if existing:
@@ -748,7 +749,7 @@ async def create_designation(
 async def list_departments(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["departments.view"]))
 ):
     query = db.query(DepartmentMaster)
     if is_active is not None:
@@ -767,7 +768,7 @@ class DepartmentCreate(BaseModel):
 async def create_department(
     data: DepartmentCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["departments.create"]))
 ):
     existing = db.query(DepartmentMaster).filter(DepartmentMaster.code == data.code).first()
     if existing:

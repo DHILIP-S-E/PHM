@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoicesApi } from '../services/api';
+import SearchBar from '../components/SearchBar';
 
 interface Invoice {
     id: string;
@@ -16,13 +17,16 @@ export default function InvoicesList() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
+    const [search, setSearch] = useState('');
 
-    useEffect(() => { fetchInvoices(); }, [statusFilter]);
+    useEffect(() => { fetchInvoices(); }, [statusFilter, search]);
 
     const fetchInvoices = async () => {
         try {
             setLoading(true);
-            const res = await invoicesApi.list({ status: statusFilter || undefined });
+            const params: any = { status: statusFilter || undefined };
+            if (search) params.search = search;
+            const res = await invoicesApi.list(params);
             setInvoices(res.data?.items || res.data?.data || res.data || []);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -41,20 +45,30 @@ export default function InvoicesList() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Invoices</h1>
                     <p className="text-slate-500">View and manage sales invoices</p>
                 </div>
-            </div>
-
-            <div className="flex gap-3">
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                    <option value="">All Status</option>
-                    <option value="paid">Paid</option>
-                    <option value="pending">Pending</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="min-w-[250px]">
+                        <SearchBar
+                            placeholder="Search invoices by number or customer..."
+                            value={search}
+                            onChange={setSearch}
+                        />
+                    </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    >
+                        <option value="">All Status</option>
+                        <option value="paid">Paid</option>
+                        <option value="pending">Pending</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">

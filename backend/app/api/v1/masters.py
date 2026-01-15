@@ -13,6 +13,7 @@ from app.db.models import (
     BrandMaster, ManufacturerMaster, PaymentMethodMaster, SupplierMaster, AdjustmentReasonMaster
 )
 from app.api.v1.auth import get_current_user
+from app.core.security import require_permission, AuthContext
 
 router = APIRouter()
 
@@ -89,7 +90,7 @@ class HSNResponse(HSNBase):
 async def list_categories(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["categories.view"]))
 ):
     """List all medicine categories"""
     query = db.query(MedicineCategory)
@@ -102,7 +103,7 @@ async def list_categories(
 async def create_category(
     data: CategoryCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["categories.create"]))
 ):
     """Create a new category"""
     existing = db.query(MedicineCategory).filter(MedicineCategory.name == data.name).first()
@@ -121,7 +122,7 @@ async def update_category(
     category_id: str,
     data: CategoryBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["categories.update", "categories.edit"]))
 ):
     """Update a category"""
     category = db.query(MedicineCategory).filter(MedicineCategory.id == category_id).first()
@@ -140,7 +141,7 @@ async def update_category(
 async def delete_category(
     category_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["categories.delete"]))
 ):
     """Soft delete a category"""
     category = db.query(MedicineCategory).filter(MedicineCategory.id == category_id).first()
@@ -158,7 +159,7 @@ async def delete_category(
 async def list_units(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["units.view"]))
 ):
     """List all units of measurement"""
     query = db.query(UnitMaster)
@@ -171,7 +172,7 @@ async def list_units(
 async def create_unit(
     data: UnitCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["units.create"]))
 ):
     """Create a new unit"""
     existing = db.query(UnitMaster).filter(UnitMaster.name == data.name).first()
@@ -190,7 +191,7 @@ async def update_unit(
     unit_id: str,
     data: UnitBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["units.update", "units.edit"]))
 ):
     """Update a unit"""
     unit = db.query(UnitMaster).filter(UnitMaster.id == unit_id).first()
@@ -209,7 +210,7 @@ async def update_unit(
 async def delete_unit(
     unit_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["units.delete"]))
 ):
     """Soft delete a unit"""
     unit = db.query(UnitMaster).filter(UnitMaster.id == unit_id).first()
@@ -227,7 +228,7 @@ async def delete_unit(
 async def list_hsn_codes(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["hsn.view"]))
 ):
     """List all HSN codes"""
     query = db.query(HSNMaster)
@@ -240,7 +241,7 @@ async def list_hsn_codes(
 async def create_hsn_code(
     data: HSNCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["hsn.create"]))
 ):
     """Create a new HSN code"""
     existing = db.query(HSNMaster).filter(HSNMaster.hsn_code == data.hsn_code).first()
@@ -259,7 +260,7 @@ async def update_hsn_code(
     hsn_id: str,
     data: HSNBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["hsn.update", "hsn.edit"]))
 ):
     """Update an HSN code"""
     hsn = db.query(HSNMaster).filter(HSNMaster.id == hsn_id).first()
@@ -278,7 +279,7 @@ async def update_hsn_code(
 async def delete_hsn_code(
     hsn_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["hsn.delete"]))
 ):
     """Soft delete an HSN code"""
     hsn = db.query(HSNMaster).filter(HSNMaster.id == hsn_id).first()
@@ -316,7 +317,7 @@ class GSTSlabResponse(GSTSlabBase):
 async def list_gst_slabs(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["gst.view"]))
 ):
     """List all GST slabs"""
     query = db.query(GSTSlabMaster)
@@ -329,7 +330,7 @@ async def list_gst_slabs(
 async def create_gst_slab(
     data: GSTSlabCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["gst.create"]))
 ):
     """Create a new GST slab"""
     existing = db.query(GSTSlabMaster).filter(GSTSlabMaster.rate == data.rate).first()
@@ -355,7 +356,7 @@ async def update_gst_slab(
     slab_id: str,
     data: GSTSlabBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["gst.update", "gst.edit"]))
 ):
     """Update a GST slab"""
     slab = db.query(GSTSlabMaster).filter(GSTSlabMaster.id == slab_id).first()
@@ -387,7 +388,7 @@ async def update_gst_slab(
 async def delete_gst_slab(
     slab_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["gst.delete"]))
 ):
     """Soft delete a GST slab"""
     slab = db.query(GSTSlabMaster).filter(GSTSlabMaster.id == slab_id).first()
@@ -430,7 +431,7 @@ class MedicineTypeResponse(MedicineTypeBase):
 async def list_medicine_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["medicine_types.view"]))
 ):
     """List all medicine types"""
     query = db.query(MedicineTypeMaster)
@@ -443,7 +444,7 @@ async def list_medicine_types(
 async def create_medicine_type(
     data: MedicineTypeCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["medicine_types.create"]))
 ):
     """Create a new medicine type"""
     existing = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.code == data.code).first()
@@ -462,7 +463,7 @@ async def update_medicine_type(
     type_id: str,
     data: MedicineTypeBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["medicine_types.update", "medicine_types.edit"]))
 ):
     """Update a medicine type"""
     medicine_type = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.id == type_id).first()
@@ -490,7 +491,7 @@ async def update_medicine_type(
 async def delete_medicine_type(
     type_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["medicine_types.delete"]))
 ):
     """Soft delete a medicine type"""
     medicine_type = db.query(MedicineTypeMaster).filter(MedicineTypeMaster.id == type_id).first()
@@ -530,7 +531,7 @@ class BrandResponse(BrandBase):
 async def list_brands(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["brands.view"]))
 ):
     """List all brands"""
     query = db.query(BrandMaster)
@@ -543,7 +544,7 @@ async def list_brands(
 async def create_brand(
     data: BrandCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["brands.create"]))
 ):
     """Create a new brand"""
     existing = db.query(BrandMaster).filter(BrandMaster.code == data.code).first()
@@ -562,7 +563,7 @@ async def update_brand(
     brand_id: str,
     data: BrandBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["brands.update", "brands.edit"]))
 ):
     """Update a brand"""
     brand = db.query(BrandMaster).filter(BrandMaster.id == brand_id).first()
@@ -590,7 +591,7 @@ async def update_brand(
 async def delete_brand(
     brand_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["brands.delete"]))
 ):
     """Soft delete a brand"""
     brand = db.query(BrandMaster).filter(BrandMaster.id == brand_id).first()
@@ -634,7 +635,7 @@ class ManufacturerResponse(ManufacturerBase):
 async def list_manufacturers(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["manufacturers.view"]))
 ):
     """List all manufacturers"""
     query = db.query(ManufacturerMaster)
@@ -647,7 +648,7 @@ async def list_manufacturers(
 async def create_manufacturer(
     data: ManufacturerCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["manufacturers.create"]))
 ):
     """Create a new manufacturer"""
     existing = db.query(ManufacturerMaster).filter(ManufacturerMaster.code == data.code).first()
@@ -666,7 +667,7 @@ async def update_manufacturer(
     manufacturer_id: str,
     data: ManufacturerBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["manufacturers.update", "manufacturers.edit"]))
 ):
     """Update a manufacturer"""
     manufacturer = db.query(ManufacturerMaster).filter(ManufacturerMaster.id == manufacturer_id).first()
@@ -694,7 +695,7 @@ async def update_manufacturer(
 async def delete_manufacturer(
     manufacturer_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["manufacturers.delete"]))
 ):
     """Soft delete a manufacturer"""
     manufacturer = db.query(ManufacturerMaster).filter(ManufacturerMaster.id == manufacturer_id).first()
@@ -734,7 +735,7 @@ class PaymentMethodResponse(PaymentMethodBase):
 async def list_payment_methods(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.view"]))
 ):
     """List all payment methods"""
     query = db.query(PaymentMethodMaster)
@@ -747,7 +748,7 @@ async def list_payment_methods(
 async def create_payment_method(
     data: PaymentMethodCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.create"]))
 ):
     """Create a new payment method"""
     existing = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.code == data.code).first()
@@ -766,7 +767,7 @@ async def update_payment_method(
     method_id: str,
     data: PaymentMethodBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.update", "payment_methods.edit"]))
 ):
     """Update a payment method"""
     payment_method = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.id == method_id).first()
@@ -793,7 +794,7 @@ async def update_payment_method(
 async def delete_payment_method(
     method_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["payment_methods.delete"]))
 ):
     """Soft delete a payment method"""
     payment_method = db.query(PaymentMethodMaster).filter(PaymentMethodMaster.id == method_id).first()
@@ -842,7 +843,7 @@ class SupplierResponse(SupplierBase):
 async def list_suppliers(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["suppliers.view"]))
 ):
     """List all suppliers"""
     query = db.query(SupplierMaster)
@@ -855,7 +856,7 @@ async def list_suppliers(
 async def create_supplier(
     data: SupplierCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["suppliers.create"]))
 ):
     """Create a new supplier"""
     existing = db.query(SupplierMaster).filter(SupplierMaster.code == data.code).first()
@@ -874,7 +875,7 @@ async def update_supplier(
     supplier_id: str,
     data: SupplierBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["suppliers.update", "suppliers.edit"]))
 ):
     """Update a supplier"""
     supplier = db.query(SupplierMaster).filter(SupplierMaster.id == supplier_id).first()
@@ -901,7 +902,7 @@ async def update_supplier(
 async def delete_supplier(
     supplier_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["suppliers.delete"]))
 ):
     """Soft delete a supplier"""
     supplier = db.query(SupplierMaster).filter(SupplierMaster.id == supplier_id).first()
@@ -943,7 +944,7 @@ async def list_adjustment_reasons(
     is_active: Optional[bool] = True,
     adjustment_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["adjustment_reasons.view"]))
 ):
     """List all adjustment reasons"""
     query = db.query(AdjustmentReasonMaster)
@@ -958,7 +959,7 @@ async def list_adjustment_reasons(
 async def create_adjustment_reason(
     data: AdjustmentReasonCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["adjustment_reasons.create"]))
 ):
     """Create a new adjustment reason"""
     # Validate adjustment_type
@@ -981,7 +982,7 @@ async def update_adjustment_reason(
     reason_id: str,
     data: AdjustmentReasonBase,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["adjustment_reasons.update", "adjustment_reasons.edit"]))
 ):
     """Update an adjustment reason"""
     if data.adjustment_type not in ["increase", "decrease"]:
@@ -1011,7 +1012,7 @@ async def update_adjustment_reason(
 async def delete_adjustment_reason(
     reason_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["adjustment_reasons.delete"]))
 ):
     """Soft delete an adjustment reason"""
     reason = db.query(AdjustmentReasonMaster).filter(AdjustmentReasonMaster.id == reason_id).first()

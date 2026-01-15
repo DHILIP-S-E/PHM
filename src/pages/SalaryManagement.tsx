@@ -59,26 +59,72 @@ export default function SalaryManagement() {
     };
 
     const loadSalaryRecords = async () => {
-        // In a real implementation, this would fetch from the API
-        // For now, we'll generate placeholder data
-        const records: SalaryRecord[] = employees.map(emp => ({
-            id: `sal-${emp.id}`,
-            employee_id: emp.id,
-            month: selectedMonth,
-            year: selectedYear,
-            basic_salary: emp.basic_salary || 25000,
-            hra: (emp.basic_salary || 25000) * 0.4,
-            allowances: 5000,
-            deductions: 0,
-            pf_deduction: (emp.basic_salary || 25000) * 0.12,
-            esi_deduction: (emp.basic_salary || 25000) * 0.0075,
-            tax_deduction: 0,
-            bonus: 0,
-            gross_salary: (emp.basic_salary || 25000) * 1.4 + 5000,
-            net_salary: ((emp.basic_salary || 25000) * 1.4 + 5000) - ((emp.basic_salary || 25000) * 0.1275),
-            is_paid: false
-        }));
-        setSalaryRecords(records);
+        try {
+            // Fetch salary records from the backend for the selected month/year
+            const response = await employeesApi.getSalaryRecords({
+                month: selectedMonth,
+                year: selectedYear
+            });
+
+            // The backend returns salary records, but we need to match them with employees
+            // If no records exist for an employee, we'll show their basic salary info
+            const salaryMap = new Map();
+
+            if (response.data && Array.isArray(response.data)) {
+                response.data.forEach((record: any) => {
+                    salaryMap.set(record.employee_id, record);
+                });
+            }
+
+            // Create records for all employees, using fetched data or defaults
+            const records: SalaryRecord[] = employees.map(emp => {
+                const existingRecord = salaryMap.get(emp.id);
+
+                if (existingRecord) {
+                    return {
+                        id: existingRecord.id,
+                        employee_id: existingRecord.employee_id,
+                        month: existingRecord.month,
+                        year: existingRecord.year,
+                        basic_salary: existingRecord.basic_salary,
+                        hra: existingRecord.hra || 0,
+                        allowances: existingRecord.allowances || 0,
+                        deductions: existingRecord.deductions || 0,
+                        pf_deduction: existingRecord.pf_deduction || 0,
+                        esi_deduction: existingRecord.esi_deduction || 0,
+                        tax_deduction: existingRecord.tax_deduction || 0,
+                        bonus: existingRecord.bonus || 0,
+                        gross_salary: existingRecord.gross_salary,
+                        net_salary: existingRecord.net_salary,
+                        is_paid: existingRecord.is_paid || false
+                    };
+                } else {
+                    // No salary record exists yet - show employee with zeros
+                    return {
+                        id: `pending-${emp.id}`,
+                        employee_id: emp.id,
+                        month: selectedMonth,
+                        year: selectedYear,
+                        basic_salary: emp.basic_salary || 0,
+                        hra: 0,
+                        allowances: 0,
+                        deductions: 0,
+                        pf_deduction: 0,
+                        esi_deduction: 0,
+                        tax_deduction: 0,
+                        bonus: 0,
+                        gross_salary: 0,
+                        net_salary: 0,
+                        is_paid: false
+                    };
+                }
+            });
+
+            setSalaryRecords(records);
+        } catch (error) {
+            console.error('Error loading salary records:', error);
+            setMessage({ type: 'error', text: 'Failed to load salary records' });
+        }
     };
 
     const processSalary = async () => {
@@ -311,7 +357,7 @@ export default function SalaryManagement() {
                         onClick={processSalary}
                         disabled={processing}
                     >
-                        {processing ? '⏳ Processing...' : '📊 Process Salary'}
+                        {processing ? 'Processing...' : 'Process Salary'}
                     </button>
                 </div>
             </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 
 interface Unit {
     id: string;
@@ -14,6 +15,7 @@ interface Unit {
 
 export default function UnitsPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const [units, setUnits] = useState<Unit[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,12 +26,12 @@ export default function UnitsPage() {
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Access Control: Only Super Admin can access
+    // Access Control: Check permission
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('units.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -98,9 +100,11 @@ export default function UnitsPage() {
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Units</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Manage units of measurement.</p>
                 </div>
-                <button onClick={openCreateModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all">
-                    <span className="material-symbols-outlined text-[20px]">add</span>Add Unit
-                </button>
+                {hasPermission('units.create') && (
+                    <button onClick={openCreateModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all">
+                        <span className="material-symbols-outlined text-[20px]">add</span>Add Unit
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -143,8 +147,12 @@ export default function UnitsPage() {
                                     <div><h3 className="font-semibold text-slate-900 dark:text-white">{unit.name}</h3><span className={`text-xs ${unit.is_active ? 'text-green-600' : 'text-slate-400'}`}>{unit.is_active ? 'Active' : 'Inactive'}</span></div>
                                 </div>
                                 <div className="flex justify-end gap-1 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                    <button onClick={() => openEditModal(unit)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">edit</span></button>
-                                    <button onClick={() => handleDelete(unit)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                                    {hasPermission('units.edit') && (
+                                        <button onClick={() => openEditModal(unit)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                                    )}
+                                    {hasPermission('units.delete') && (
+                                        <button onClick={() => handleDelete(unit)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                                    )}
                                 </div>
                             </div>
                         ))}

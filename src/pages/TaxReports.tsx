@@ -289,9 +289,9 @@ export default function TaxReports() {
             `}</style>
 
             <div className="page-header">
-                <h1>📋 Tax Reports</h1>
+                <h1>Tax Reports</h1>
                 <button className="btn-export" onClick={exportReport}>
-                    📥 Export for CA Filing
+                    Export for CA Filing
                 </button>
             </div>
 
@@ -345,7 +345,7 @@ export default function TaxReports() {
                             <div className="stat-label">Total Sales</div>
                         </div>
                         <div className="stat-card">
-                            <div className="stat-icon">📊</div>
+                            <div className="stat-icon"></div>
                             <div className="stat-value">{formatCurrency(taxSummary.net_taxable_value)}</div>
                             <div className="stat-label">Taxable Value</div>
                         </div>
@@ -355,7 +355,7 @@ export default function TaxReports() {
                             <div className="stat-label">Total Tax Collected</div>
                         </div>
                         <div className="stat-card warning">
-                            <div className="stat-icon">📋</div>
+                            <div className="stat-icon"></div>
                             <div className="stat-value">{formatCurrency(taxSummary.gst_amount)}</div>
                             <div className="stat-label">GST Liability</div>
                         </div>
@@ -373,7 +373,7 @@ export default function TaxReports() {
                 <>
                     <div className="stats-grid">
                         <div className="stat-card primary">
-                            <div className="stat-icon">📊</div>
+                            <div className="stat-icon"></div>
                             <div className="stat-value">{formatCurrency(gstReport.total_taxable_value)}</div>
                             <div className="stat-label">Taxable Value</div>
                         </div>

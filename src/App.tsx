@@ -25,7 +25,8 @@ import ReturnRefund from './pages/ReturnRefund';
 import UsersList from './pages/UsersList';
 import CustomersList from './pages/CustomersList';
 import EmployeesList from './pages/EmployeesList';
-import AttendanceManagement from './pages/AttendanceManagement';
+import AttendanceMarker from './pages/attendance/AttendanceMarker';
+import AttendanceReport from './pages/attendance/AttendanceReport';
 import SalaryManagement from './pages/SalaryManagement';
 import InvoicesList from './pages/InvoicesList';
 import DispatchesList from './pages/DispatchesList';
@@ -149,7 +150,8 @@ function App() {
 
                   {/* Employees & HR */}
                   <Route path="employees" element={<EmployeesList />} />
-                  <Route path="employees/attendance" element={<AttendanceManagement />} />
+                  <Route path="employees/attendance" element={<AttendanceMarker />} />
+                  <Route path="employees/attendance/report" element={<AttendanceReport />} />
                   <Route path="employees/salary" element={<SalaryManagement />} />
 
                   {/* Dispatches (Operational) */}

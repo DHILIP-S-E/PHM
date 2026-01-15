@@ -45,6 +45,14 @@ def grant_warehouse_permissions():
             'employees.view.warehouse',
             'employees.manage.warehouse',
             
+            # Users Management (Warehouse Admin needs these to create staff users)
+            'users.view',
+            'users.create',
+            'users.edit',
+            
+            # Roles (Hidden for Warehouse Admin)
+            # 'roles.view', 
+            
             # Attendance (warehouse scope)
             'attendance.manage.warehouse',
             
@@ -62,9 +70,50 @@ def grant_warehouse_permissions():
             # Warehouses (view only)
             'warehouses.view',
             
+            # Master Data - VIEW permissions for all modules
+            # GST / VAT Slabs
+            'gst.view',
+            'gst.manage',
+            
+            # HSN Codes
+            'hsn.view',
+            'hsn.manage',
+            
+            # Medicine Categories
+            'categories.view',
+            'categories.manage',
+            
+            # Medicine Types
+            'medicine_types.view',
+            'medicine_types.manage',
+            
+            # Brands
+            'brands.view',
+            'brands.manage',
+            
+            # Manufacturers
+            'manufacturers.view',
+            'manufacturers.manage',
+            
+            # Units / Packaging
+            'units.view',
+            'units.manage',
+            
             # Racks
             'racks.view',
-            'racks.manage.warehouse',
+            'racks.manage',
+            
+            # Adjustment Reasons
+            'adjustment_reasons.view',
+            'adjustment_reasons.manage',
+            
+            # Suppliers
+            'suppliers.view',
+            'suppliers.manage',
+            
+            # Payment Methods
+            'payment_methods.view',
+            'payment_methods.manage',
         ]
         
         # Get all permissions

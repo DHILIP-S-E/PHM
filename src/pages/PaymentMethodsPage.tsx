@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -19,6 +20,7 @@ interface PaymentMethod {
 
 export default function PaymentMethodsPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const [items, setItems] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
@@ -33,10 +35,10 @@ export default function PaymentMethodsPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('payment_methods.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -119,10 +121,12 @@ export default function PaymentMethodsPage() {
             description="Manage payment methods for billing and POS"
             icon="credit_card"
             actions={
-                <Button variant="primary" onClick={openCreateModal}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Method
-                </Button>
+                hasPermission('payment_methods.create') && (
+                    <Button variant="primary" onClick={openCreateModal}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Method
+                    </Button>
+                )
             }
         >
             <Card className="space-y-6">
@@ -148,12 +152,16 @@ export default function PaymentMethodsPage() {
                                     <p className="text-sm text-slate-500 font-mono">{item.code}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
-                                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                                    </button>
-                                    <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
-                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                    </button>
+                                    {hasPermission('payment_methods.edit') && (
+                                        <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
+                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                        </button>
+                                    )}
+                                    {hasPermission('payment_methods.delete') && (
+                                        <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
+                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { taxApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
 import { MasterDataWarning } from '../components/MasterDataWarning';
@@ -24,6 +25,7 @@ interface TaxSettings {
 
 export default function GSTVATPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const { getMaster } = useMasterData();
     const gstSlabs = getMaster('gst_slabs');
@@ -40,10 +42,10 @@ export default function GSTVATPage() {
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('gst.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadSettings(); }, []);
 
@@ -231,10 +233,12 @@ export default function GSTVATPage() {
 
                 {/* Save Button */}
                 <div className="flex justify-end">
-                    <Button variant="primary" onClick={handleSave} loading={saving} disabled={!canCreate}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">save</span>
-                        {saving ? 'Saving...' : 'Save Settings'}
-                    </Button>
+                    {hasPermission('gst.edit') && (
+                        <Button variant="primary" onClick={handleSave} loading={saving} disabled={!canCreate}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">save</span>
+                            {saving ? 'Saving...' : 'Save Settings'}
+                        </Button>
+                    )}
                 </div>
             </div>
         </PageLayout>

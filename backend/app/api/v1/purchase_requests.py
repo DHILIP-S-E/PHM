@@ -82,7 +82,7 @@ async def list_purchase_requests(
 async def create_purchase_request(
     request_data: PurchaseRequestCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["shop_owner", "pharmacist"]))
+    current_user: dict = Depends(require_role(["shop_owner", "pharmacist", "super_admin", "warehouse_admin"]))
 ):
     """Create a new purchase request"""
     # Validate shop and warehouse

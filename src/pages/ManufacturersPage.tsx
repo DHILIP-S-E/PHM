@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { mastersApi } from '../services/api';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -16,6 +19,9 @@ interface Manufacturer {
 }
 
 export default function ManufacturersPage() {
+    const { user } = useUser();
+    const { hasPermission } = usePermissions();
+    const navigate = useNavigate();
     const [items, setItems] = useState<Manufacturer[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -23,6 +29,12 @@ export default function ManufacturersPage() {
     const [formData, setFormData] = useState({ code: '', name: '', description: '' });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (user && !hasPermission('manufacturers.view')) {
+            navigate('/');
+        }
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -91,10 +103,12 @@ export default function ManufacturersPage() {
             description="Manage medicine manufacturer masters"
             icon="factory"
             actions={
-                <Button variant="primary" onClick={openCreate}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Manufacturer
-                </Button>
+                hasPermission('manufacturers.create') && (
+                    <Button variant="primary" onClick={openCreate}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Manufacturer
+                    </Button>
+                )
             }
         >
             <Card className="!p-0">
@@ -107,9 +121,11 @@ export default function ManufacturersPage() {
                         <span className="material-symbols-outlined text-5xl text-slate-300 mb-3">factory</span>
                         <h3 className="text-lg font-medium text-slate-900 dark:text-white">No Manufacturers</h3>
                         <p className="text-slate-500 mt-1">Create medicine manufacturer masters</p>
-                        <Button variant="primary" className="mt-4" onClick={openCreate}>
-                            Add First Manufacturer
-                        </Button>
+                        {hasPermission('manufacturers.create') && (
+                            <Button variant="primary" className="mt-4" onClick={openCreate}>
+                                Add First Manufacturer
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     <table className="w-full">
@@ -135,12 +151,16 @@ export default function ManufacturersPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex justify-center gap-1">
-                                            <Button variant="secondary" onClick={() => openEdit(item)} className="!p-1.5">
-                                                <span className="material-symbols-outlined text-[18px]">edit</span>
-                                            </Button>
-                                            <Button variant="secondary" onClick={() => handleDelete(item)} className="!p-1.5 text-red-600">
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </Button>
+                                            {hasPermission('manufacturers.edit') && (
+                                                <Button variant="secondary" onClick={() => openEdit(item)} className="!p-1.5">
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </Button>
+                                            )}
+                                            {hasPermission('manufacturers.delete') && (
+                                                <Button variant="secondary" onClick={() => handleDelete(item)} className="!p-1.5 text-red-600">
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
 import { MasterDataWarning } from '../components/MasterDataWarning';
@@ -22,6 +23,7 @@ interface HSN {
 
 export default function HSNCodesPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const { getMaster } = useMasterData();
     const { canCreate, missingPrerequisites } = useMasterDataPrerequisites('hsn_codes');
@@ -44,12 +46,12 @@ export default function HSNCodesPage() {
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Access Control: Only Super Admin can access
+    // Access Control: Check permission
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('hsn.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -153,17 +155,19 @@ export default function HSNCodesPage() {
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">HSN Codes</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Manage HSN codes with GST rates.</p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    disabled={!canCreate}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium shadow-lg transition-all ${!canCreate
-                        ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
-                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-amber-500/25 hover:shadow-xl'
-                        }`}
-                    title={!canCreate ? 'GST slabs must be created first' : 'Add HSN Code'}
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>Add HSN Code
-                </button>
+                {hasPermission('hsn.create') && (
+                    <button
+                        onClick={openCreateModal}
+                        disabled={!canCreate}
+                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium shadow-lg transition-all ${!canCreate
+                            ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
+                            : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-amber-500/25 hover:shadow-xl'
+                            }`}
+                        title={!canCreate ? 'GST slabs must be created first' : 'Add HSN Code'}
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>Add HSN Code
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -229,8 +233,12 @@ export default function HSNCodesPage() {
                                     <td className="px-6 py-4 text-center"><span className={`px-2 py-0.5 text-xs rounded-full ${hsn.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>{hsn.is_active ? 'Active' : 'Inactive'}</span></td>
                                     <td className="px-6 py-4">
                                         <div className="flex justify-center gap-1">
-                                            <button onClick={() => openEditModal(hsn)} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">edit</span></button>
-                                            <button onClick={() => handleDelete(hsn)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                                            {hasPermission('hsn.edit') && (
+                                                <button onClick={() => openEditModal(hsn)} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                                            )}
+                                            {hasPermission('hsn.delete') && (
+                                                <button onClick={() => handleDelete(hsn)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

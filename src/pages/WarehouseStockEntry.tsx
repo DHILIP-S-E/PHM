@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { medicinesApi, inventoryApi } from '../services/api';
+import { medicinesApi, inventoryApi, racksApi } from '../services/api';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -32,6 +32,7 @@ export default function WarehouseStockEntry() {
 
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [existingBatches, setExistingBatches] = useState<Batch[]>([]);
+    const [racks, setRacks] = useState<any[]>([]); // Added racks state
 
     // Derived from context
     const warehouseId = activeEntity?.type === 'warehouse' ? activeEntity.id : '';
@@ -41,6 +42,7 @@ export default function WarehouseStockEntry() {
     const [batchNumber, setBatchNumber] = useState('');
     const [expiryDate, setExpiryDate] = useState('');
     const [quantity, setQuantity] = useState('');
+    const [purchasePrice, setPurchasePrice] = useState('');
     const [rackName, setRackName] = useState('');
     const [rackNumber, setRackNumber] = useState('');
     const [loading, setLoading] = useState(false);
@@ -57,6 +59,7 @@ export default function WarehouseStockEntry() {
     useEffect(() => {
         if (activeEntity?.type === 'warehouse') {
             loadMedicines();
+            loadRacks(); // Load racks
         }
     }, [activeEntity]);
 
@@ -68,6 +71,7 @@ export default function WarehouseStockEntry() {
         }
         setBatchNumber('');
         setExpiryDate('');
+        setPurchasePrice('');
         setSelectedExistingBatch('');
     }, [selectedMedicine]);
 
@@ -100,6 +104,15 @@ export default function WarehouseStockEntry() {
         }
     };
 
+    const loadRacks = async () => {
+        try {
+            const response = await racksApi.list({ size: 100 });
+            setRacks(response.data.items || []);
+        } catch (error) {
+            console.error('Error loading racks:', error);
+        }
+    };
+
     const handleExistingBatchSelect = (batchId: string) => {
         setSelectedExistingBatch(batchId);
         if (batchId) {
@@ -127,6 +140,7 @@ export default function WarehouseStockEntry() {
                 batch_number: batchNumber,
                 expiry_date: expiryDate,
                 quantity: parseInt(quantity),
+                purchase_price: parseFloat(purchasePrice) || 0,
                 rack_name: rackName || undefined,
                 rack_number: rackNumber || undefined
             };
@@ -139,12 +153,13 @@ export default function WarehouseStockEntry() {
                 medicine: medicine?.name,
                 batch: batchNumber,
                 quantity: parseInt(quantity),
-                rack: rackName ? `${rackName} (${rackNumber})` : rackNumber,
+                rack: rackNumber && rackName ? `${rackNumber} / ${rackName}` : (rackNumber || rackName),
                 timestamp: new Date().toLocaleTimeString()
             }, ...prev.slice(0, 9)]);
 
             setMessage({ type: 'success', text: 'Stock entry added successfully' });
             setQuantity('');
+            setPurchasePrice('');
             setRackName('');
             setRackNumber('');
             setBatchNumber('');
@@ -249,28 +264,49 @@ export default function WarehouseStockEntry() {
                             />
                         </div>
 
-                        <Input
-                            label="Quantity *"
-                            type="number"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            placeholder="Enter quantity"
-                            min="1"
-                            required
-                        />
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
-                                label="Rack / Box Name"
-                                value={rackName}
-                                onChange={(e) => setRackName(e.target.value)}
-                                placeholder="e.g., Shelf A"
+                                label="Quantity *"
+                                type="number"
+                                value={quantity}
+                                onChange={(e) => setQuantity(e.target.value)}
+                                placeholder="Enter quantity"
+                                min="1"
+                                required
                             />
                             <Input
-                                label="Rack Number"
-                                value={rackNumber}
-                                onChange={(e) => setRackNumber(e.target.value.toUpperCase())}
-                                placeholder="e.g., A1"
+                                label="Purchase Price (₹) *"
+                                type="number"
+                                step="0.01"
+                                value={purchasePrice}
+                                onChange={(e) => setPurchasePrice(e.target.value)}
+                                placeholder="Enter purchase price"
+                                min="0"
+                                required
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Select
+                                label="Rack No"
+                                value={racks.find(r => r.rack_number === rackNumber)?.id || ''} // Bind by finding ID that matches current number
+                                onChange={(e) => {
+                                    const selectedRack = racks.find(r => r.id === e.target.value);
+                                    if (selectedRack) {
+                                        setRackNumber(selectedRack.rack_number);
+                                    }
+                                }}
+                                options={racks.map(r => ({
+                                    value: r.id,
+                                    label: `${r.rack_number} - ${r.rack_name}`
+                                }))}
+                                placeholder="Select Rack"
+                            />
+                            <Input
+                                label="Box No"
+                                value={rackName}
+                                onChange={(e) => setRackName(e.target.value)}
+                                placeholder="e.g., B-05"
                             />
                         </div>
 

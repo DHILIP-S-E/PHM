@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { rolesApi, usersApi, permissionsApi } from '../services/api';
 import { usePermissions } from '../contexts/PermissionContext';
+import { useUser } from '../contexts/UserContext';
 import { PERMISSIONS } from '../types/permissions';
 
 interface Permission {
@@ -32,6 +33,7 @@ interface User {
 
 export default function RolesPermissionsPage() {
     const { hasPermission } = usePermissions();
+    const { user } = useUser();
     const canView = hasPermission(PERMISSIONS.ROLES_VIEW);
     const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE);
 
@@ -51,12 +53,12 @@ export default function RolesPermissionsPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (canView) {
+        if (canView && user) {
             loadData();
-        } else {
+        } else if (!canView) {
             setLoading(false);
         }
-    }, [canView]);
+    }, [canView, user]);
 
     const loadData = async () => {
         setLoading(true);
@@ -66,7 +68,18 @@ export default function RolesPermissionsPage() {
                 permissionsApi.list(),
                 usersApi.list({ size: 100 })
             ]);
-            setRoles(rolesRes.data.items || []);
+
+            let fetchedRoles = rolesRes.data.items || [];
+
+            // Filter roles for Warehouse Admin
+            if (user?.role === 'warehouse_admin') {
+                fetchedRoles = fetchedRoles.filter((r: any) =>
+                    r.name !== 'super_admin' &&
+                    r.entity_type !== 'shop'
+                );
+            }
+
+            setRoles(fetchedRoles);
             setAllPermissions(permissionsRes.data.items || []);
             setUsers(usersRes.data.items || []);
         } catch (err) {

@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { employeesApi } from '../services/api';
 import { DepartmentSelect, DesignationSelect, ShopSelect, EmploymentTypeSelect, GenderSelect } from '../components/MasterSelect';
+import { useUser } from '../contexts/UserContext';
+import StatCard from '../components/StatCard';
+import SearchBar from '../components/SearchBar';
 
 interface Employee {
     id: string;
@@ -38,7 +41,7 @@ const emptyForm: EmployeeForm = {
     name: '',
     email: '',
     phone: '',
-    department: 'pharmacy',
+    department: 'operations', // Default changed from pharmacy
     designation: '',
     employment_type: 'full_time',
     salary: 0,
@@ -50,6 +53,7 @@ const emptyForm: EmployeeForm = {
 };
 
 export default function EmployeesList() {
+    const { user } = useUser();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -65,9 +69,11 @@ export default function EmployeesList() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
+    const isWarehouseAdmin = user?.role === 'warehouse_admin';
+
     useEffect(() => {
         fetchEmployees();
-    }, [deptFilter, currentPage]);
+    }, [deptFilter, currentPage, search]);
 
     const fetchEmployees = async () => {
         try {
@@ -89,7 +95,10 @@ export default function EmployeesList() {
 
     const openCreateModal = () => {
         setEditingEmployee(null);
-        setFormData(emptyForm);
+        setFormData({
+            ...emptyForm,
+            department: isWarehouseAdmin ? 'operations' : 'pharmacy',
+        });
         setError('');
         setShowModal(true);
     };
@@ -103,7 +112,7 @@ export default function EmployeesList() {
                 name: data.name || '',
                 email: data.email || '',
                 phone: data.phone || '',
-                department: data.department || 'pharmacy',
+                department: data.department || (isWarehouseAdmin ? 'operations' : 'pharmacy'),
                 designation: data.designation || '',
                 employment_type: data.employment_type || 'full_time',
                 salary: data.salary || 0,
@@ -130,18 +139,58 @@ export default function EmployeesList() {
             return;
         }
 
+        if (!formData.salary || formData.salary <= 0) {
+            setError('Please enter a valid salary amount');
+            return;
+        }
+
         setSaving(true);
         try {
+            // Prepare payload - convert empty strings to null/undefined for optional fields
+            const payload: any = {
+                name: formData.name,
+                phone: formData.phone,
+                department: formData.department,
+                designation: formData.designation || undefined,
+                employment_type: formData.employment_type,
+                date_of_joining: formData.date_of_joining,
+                basic_salary: Number(formData.salary) || undefined, // Backend expects 'basic_salary'
+                email: formData.email || undefined,
+                gender: formData.gender || undefined,
+                address: formData.address || undefined,
+                emergency_contact: formData.emergency_contact || undefined,
+                shop_id: formData.shop_id || undefined,
+            };
+
             if (editingEmployee) {
-                await employeesApi.update(editingEmployee.id, formData);
+                await employeesApi.update(editingEmployee.id, payload);
             } else {
-                await employeesApi.create(formData);
+                await employeesApi.create(payload);
             }
             setShowModal(false);
             fetchEmployees();
         } catch (err: any) {
             console.error('Failed to save employee:', err);
-            setError(err.response?.data?.detail || 'Failed to save employee');
+
+            // Handle Pydantic validation errors (422)
+            let errorMessage = 'Failed to save employee';
+            if (err.response?.data?.detail) {
+                const detail = err.response.data.detail;
+
+                // If detail is an array of validation errors
+                if (Array.isArray(detail)) {
+                    errorMessage = detail.map((e: any) => {
+                        const field = e.loc?.join('.') || 'Unknown field';
+                        return `${field}: ${e.msg}`;
+                    }).join(', ');
+                } else if (typeof detail === 'string') {
+                    errorMessage = detail;
+                } else {
+                    errorMessage = JSON.stringify(detail);
+                }
+            }
+
+            setError(errorMessage);
         } finally {
             setSaving(false);
         }
@@ -150,10 +199,18 @@ export default function EmployeesList() {
     const formatCurrency = (v: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v);
     const totalPages = Math.ceil(totalItems / pageSize);
 
+    // Calculate stats
+    const stats = {
+        total: employees.length,
+        active: employees.filter(e => e.status === 'active').length,
+        inactive: employees.filter(e => e.status === 'inactive').length,
+        onLeave: employees.filter(e => e.status === 'on_leave').length
+    };
+
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-end justify-between gap-4">
+            {/* 1. PAGE HEADER */}
+            <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Employees</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Manage staff and payroll</p>
@@ -167,42 +224,69 @@ export default function EmployeesList() {
                 </button>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-                <div className="flex flex-wrap gap-4">
-                    <div className="flex-1 min-w-[250px]">
+            {/* 2. KPI / SUMMARY STRIP */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard
+                    title="Total Employees"
+                    value={totalItems}
+                    icon="badge"
+                />
+                <StatCard
+                    title="Active"
+                    value={stats.active}
+                    icon="check_circle"
+                    change="+5% vs last month"
+                    changeType="up"
+                />
+                <StatCard
+                    title="Inactive"
+                    value={stats.inactive}
+                    icon="cancel"
+                />
+                <StatCard
+                    title="On Leave"
+                    value={stats.onLeave}
+                    icon="event_busy"
+                />
+            </div>
+
+            {/* 3. LIST CONTROLS STRIP */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
+                <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        Employee List
+                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full">
+                            {totalItems}
+                        </span>
+                    </h2>
+                    <div className="flex items-center gap-2">
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <span className="material-symbols-outlined text-[20px]">search</span>
+                                <span className="material-symbols-outlined text-[18px]">search</span>
                             </span>
                             <input
                                 type="text"
-                                placeholder="Search employees..."
+                                placeholder="Search..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && fetchEmployees()}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                                className="w-44 pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                             />
                         </div>
-                    </div>
-                    <div className="w-48">
-                        <DepartmentSelect
+                        <button className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700">
+                            <span className="material-symbols-outlined text-[18px] text-slate-500">filter_list</span>
+                        </button>
+                        <select
                             value={deptFilter}
-                            onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
-                            placeholder="All Departments"
-                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                        />
+                            onChange={(e) => { setDeptFilter(e.target.value); setCurrentPage(1); }}
+                            className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+                        >
+                            <option value="">All Depts</option>
+                        </select>
                     </div>
-                    <button
-                        onClick={fetchEmployees}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">refresh</span>
-                    </button>
                 </div>
             </div>
 
-            {/* Table */}
+            {/* 4. ENTITY TABLE */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 {loading ? (
                     <div className="flex justify-center py-16">
@@ -225,56 +309,53 @@ export default function EmployeesList() {
                         <table className="w-full">
                             <thead className="bg-slate-50 dark:bg-slate-900/50">
                                 <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Employee</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Department</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Designation</th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Salary</th>
-                                    <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Status</th>
-                                    <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Employee</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Department</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Designation</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Salary</th>
+                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Status</th>
+                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {employees.map((emp) => (
-                                    <tr key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center text-white font-medium">
+                                    <tr key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+                                        <td className="px-4 py-2.5">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm">
                                                     {emp.name.charAt(0)}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-slate-900 dark:text-white">{emp.name}</p>
-                                                    <p className="text-sm text-slate-500">{emp.phone}</p>
-                                                    {emp.employment_type && (
-                                                        <span className="text-[10px] uppercase font-bold text-slate-400">{emp.employment_type.replace('_', ' ')}</span>
-                                                    )}
+                                                    <p className="font-medium text-sm text-slate-900 dark:text-white">{emp.name}</p>
+                                                    <p className="text-xs text-slate-500">{emp.phone}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
+                                        <td className="px-4 py-2.5">
+                                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
                                                 {emp.department}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{emp.designation || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-right font-medium text-slate-900 dark:text-white">
+                                        <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-400">{emp.designation || 'N/A'}</td>
+                                        <td className="px-4 py-2.5 text-right text-sm font-medium text-slate-900 dark:text-white">
                                             {formatCurrency(emp.salary || 0)}
                                         </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${emp.status === 'active'
-                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                        <td className="px-4 py-2.5 text-center">
+                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${emp.status === 'active'
+                                                ? 'bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                : 'bg-red-100/80 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                 }`}>
                                                 {emp.status || 'Active'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-1">
+                                        <td className="px-4 py-2.5">
+                                            <div className="flex items-center justify-center opacity-60 group-hover:opacity-100">
                                                 <button
                                                     onClick={() => openEditModal(emp)}
-                                                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                    className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
                                                     title="Edit"
                                                 >
-                                                    <span className="material-symbols-outlined text-slate-500 text-[20px]">edit</span>
+                                                    <span className="material-symbols-outlined text-slate-400 text-[18px]">edit</span>
                                                 </button>
                                             </div>
                                         </td>
@@ -423,14 +504,17 @@ export default function EmployeesList() {
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assigned Shop</label>
-                                        <ShopSelect
-                                            value={formData.shop_id}
-                                            onChange={(val) => setFormData({ ...formData, shop_id: val })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        />
-                                    </div>
+                                    {/* Hide Shop selection for Warehouse Admins as they hire for their warehouse */}
+                                    {!isWarehouseAdmin && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assigned Shop</label>
+                                            <ShopSelect
+                                                value={formData.shop_id}
+                                                onChange={(val) => setFormData({ ...formData, shop_id: val })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>

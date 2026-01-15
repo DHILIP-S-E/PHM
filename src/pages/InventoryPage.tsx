@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { inventoryApi } from '../services/api';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import { WarehouseSelect } from '../components/MasterSelect';
+import StatCard from '../components/StatCard';
 
 interface StockMovement {
     id: string;
@@ -95,64 +96,102 @@ export default function InventoryPage() {
         }
     };
 
+    // Calculate stats
+    const stats = {
+        total: totalItems,
+        stockIn: movements.filter(m => m.movement_type === 'in').length,
+        stockOut: movements.filter(m => m.movement_type === 'out').length,
+        transfers: movements.filter(m => m.movement_type === 'transfer').length
+    };
+
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto">
-            {/* Header */}
+        <div className="space-y-6">
+            {/* 1. PAGE HEADER */}
             <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Inventory Movements</h1>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Inventory Movements</h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-1">
                     Track stock changes {scope === 'global' ? 'across all locations' : activeEntity?.name ? `for ${activeEntity.name}` : ''}
                 </p>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-                <div className="flex flex-wrap gap-4">
-                    {/* Warehouse Selector - ONLY visible to Super Admin in GLOBAL scope */}
-                    {scope === 'global' && (
-                        <WarehouseSelect
-                            value={selectedWarehouseId}
-                            onChange={(val) => { setSelectedWarehouseId(val); setCurrentPage(1); }}
-                            placeholder="All Warehouses"
-                            className="w-[200px]"
-                        />
-                    )}
+            {/* 2. KPI / SUMMARY STRIP */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard
+                    title="Total Movements"
+                    value={stats.total}
+                    icon="history"
+                />
+                <StatCard
+                    title="Stock In"
+                    value={stats.stockIn}
+                    icon="login"
+                />
+                <StatCard
+                    title="Stock Out"
+                    value={stats.stockOut}
+                    icon="logout"
+                />
+                <StatCard
+                    title="Transfers"
+                    value={stats.transfers}
+                    icon="swap_horiz"
+                />
+            </div>
 
-                    {/* Explicit indicator of current scope if not global */}
-                    {scope !== 'global' && activeEntity && (
-                        <div className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed min-w-[200px] flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[18px]">
-                                {activeEntity.type === 'warehouse' ? 'warehouse' : 'store'}
+            {/* 3. LIST CONTROLS STRIP */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
+                <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        Movement List
+                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full">
+                            {totalItems}
+                        </span>
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        {/* Warehouse Selector - ONLY visible to Super Admin in GLOBAL scope */}
+                        {scope === 'global' && (
+                            <select
+                                value={selectedWarehouseId}
+                                onChange={(e) => { setSelectedWarehouseId(e.target.value); setCurrentPage(1); }}
+                                className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+                            >
+                                <option value="">All Warehouses</option>
+                            </select>
+                        )}
+
+                        {/* Explicit indicator of current scope if not global */}
+                        {scope !== 'global' && activeEntity && (
+                            <span className="px-3 py-2 text-sm rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-[16px]">
+                                    {activeEntity.type === 'warehouse' ? 'warehouse' : 'store'}
+                                </span>
+                                {activeEntity.name}
                             </span>
-                            {activeEntity.name}
-                        </div>
-                    )}
+                        )}
 
-                    <select
-                        value={movementType}
-                        onChange={(e) => { setMovementType(e.target.value); setCurrentPage(1); }}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white min-w-[150px]"
-                    >
-                        <option value="">All Types</option>
-                        <option value="in">Stock In</option>
-                        <option value="out">Stock Out</option>
-                        <option value="transfer">Transfer</option>
-                        <option value="adjustment">Adjustment</option>
-                    </select>
+                        <button className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700">
+                            <span className="material-symbols-outlined text-[18px] text-slate-500">filter_list</span>
+                        </button>
 
-                    <button
-                        onClick={fetchMovements}
-                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ml-auto"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">refresh</span>
-                    </button>
+                        <select
+                            value={movementType}
+                            onChange={(e) => { setMovementType(e.target.value); setCurrentPage(1); }}
+                            className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+                        >
+                            <option value="">All Types</option>
+                            <option value="in">Stock In</option>
+                            <option value="out">Stock Out</option>
+                            <option value="transfer">Transfer</option>
+                            <option value="adjustment">Adjustment</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            {/* 4. ENTITY TABLE */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
@@ -168,46 +207,46 @@ export default function InventoryPage() {
                         <table className="w-full">
                             <thead className="bg-slate-50 dark:bg-slate-900/50">
                                 <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Details</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Product</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Type</th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Quantity</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Location</th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Date</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Details</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Product</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Type</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Qty</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Location</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Date</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {movements.map((move, index) => (
-                                    <tr key={move.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors animate-fadeIn" style={{ animationDelay: `${index * 20}ms` }}>
-                                        <td className="px-6 py-4">
+                                    <tr key={move.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                        <td className="px-4 py-2.5">
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-mono text-slate-500">{move.reference_type.toUpperCase()}</span>
-                                                <span className="text-xs text-slate-400">By: {move.performed_by || 'System'}</span>
+                                                <span className="text-[11px] font-mono text-slate-500">{move.reference_type.toUpperCase()}</span>
+                                                <span className="text-[11px] text-slate-400">By: {move.performed_by || 'System'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-2.5">
                                             <div>
-                                                <p className="font-medium text-slate-900 dark:text-white">{move.medicine_name}</p>
-                                                <p className="text-xs text-slate-500">Batch: {move.batch_number}</p>
+                                                <p className="font-medium text-sm text-slate-900 dark:text-white">{move.medicine_name}</p>
+                                                <p className="text-[11px] text-slate-500">Batch: {move.batch_number}</p>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getMovementColor(move.movement_type)}`}>
-                                                <span className="material-symbols-outlined text-[14px]">{getMovementIcon(move.movement_type)}</span>
+                                        <td className="px-4 py-2.5">
+                                            <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${getMovementColor(move.movement_type)}`}>
+                                                <span className="material-symbols-outlined text-[12px]">{getMovementIcon(move.movement_type)}</span>
                                                 <span className="capitalize">{move.movement_type}</span>
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className={`font-mono font-medium ${move.movement_type === 'out' ? 'text-red-600' : 'text-green-600'}`}>
+                                        <td className="px-4 py-2.5 text-right">
+                                            <span className={`font-mono text-sm font-medium ${move.movement_type === 'out' ? 'text-red-600' : 'text-green-600'}`}>
                                                 {move.movement_type === 'out' ? '-' : '+'}{Math.abs(move.quantity)}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                        <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-400">
                                             {move.warehouse_name || move.shop_name || '-'}
                                         </td>
-                                        <td className="px-6 py-4 text-right text-sm text-slate-500 dark:text-slate-400">
+                                        <td className="px-4 py-2.5 text-right text-xs text-slate-500 dark:text-slate-400">
                                             {new Date(move.created_at).toLocaleDateString()}
-                                            <div className="text-xs">{new Date(move.created_at).toLocaleTimeString()}</div>
+                                            <div className="text-[10px]">{new Date(move.created_at).toLocaleTimeString()}</div>
                                         </td>
                                     </tr>
                                 ))}
@@ -220,7 +259,7 @@ export default function InventoryPage() {
                 {totalPages > 1 && (
                     <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <p className="text-sm text-slate-500">
-                            Page {currentPage} of {totalPages}
+                            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems}
                         </p>
                         <div className="flex items-center gap-2">
                             <button
@@ -230,6 +269,7 @@ export default function InventoryPage() {
                             >
                                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
                             </button>
+                            <span className="px-4 py-2 text-sm font-medium">Page {currentPage} of {totalPages}</span>
                             <button
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}

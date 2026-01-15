@@ -47,8 +47,25 @@ async def list_users(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """List all users with pagination"""
+    """List all users with pagination - scoped by user's permissions"""
     query = db.query(User)
+    
+    # Apply warehouse scope filtering for Warehouse Admin
+    user_role = current_user.get("role")
+    if user_role == "warehouse_admin":
+        # Warehouse Admin can only see users from their warehouse
+        warehouse_id = current_user.get("warehouse_id")
+        if warehouse_id:
+            query = query.filter(User.assigned_warehouse_id == warehouse_id)
+        else:
+            # If no warehouse assigned, return empty list
+            return {
+                "items": [],
+                "total": 0,
+                "page": page,
+                "size": size
+            }
+    # Super Admin sees all users (no filter applied)
     
     # Default: only show active users unless explicitly requested
     if is_active is not None:
@@ -97,6 +114,10 @@ async def create_user(
     """Create a new user with permission-based role assignment"""
     logger.info(f"Creating user with data: {user_data.model_dump()}")
     
+    # Get current user's role and warehouse
+    user_role = current_user.get("role") if isinstance(current_user, dict) else current_user.role
+    user_warehouse_id = current_user.get("warehouse_id") if isinstance(current_user, dict) else current_user.warehouse_id
+    
     # Determine the role to assign
     role = None
     if user_data.role_id:
@@ -109,6 +130,22 @@ async def create_user(
                 status_code=403,
                 detail=f"Role '{role.name}' cannot be assigned via API. Contact system administrator."
             )
+        
+        # Warehouse Admin restrictions
+        if user_role == "warehouse_admin":
+            # Cannot assign warehouse_admin or super_admin roles
+            if role.name in ["warehouse_admin", "super_admin"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You cannot assign '{role.name}' role. Contact Super Admin."
+                )
+            # Cannot assign shop-level roles
+            if role.entity_type == "shop":
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Warehouse Admin cannot assign shop-level roles. Contact Super Admin."
+                )
+                
     elif user_data.role:
         # Legacy approach: use role enum
         if user_data.role == RoleType.SUPER_ADMIN:
@@ -119,6 +156,16 @@ async def create_user(
         # Find or validate the role exists in DB
         role_name = user_data.role.value if hasattr(user_data.role, 'value') else str(user_data.role)
         role = db.query(Role).filter(Role.name == role_name).first()
+    
+    # Warehouse Admin must assign users to their own warehouse
+    if user_role == "warehouse_admin":
+        if not user_warehouse_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Warehouse Admin must be assigned to a warehouse"
+            )
+        # Force the new user to be assigned to the same warehouse
+        user_data.assigned_warehouse_id = user_warehouse_id
     
     # Validate entity assignment based on role entity_type
     if role and role.entity_type == "warehouse":
@@ -211,10 +258,32 @@ async def update_user(
         raise HTTPException(status_code=403, detail="Not authorized to update this user")
     
     update_data = user_data.model_dump(exclude_unset=True)
+    
+    # Handle role_id update with validation
+    if "role_id" in update_data and update_data["role_id"]:
+        new_role = db.query(Role).filter(Role.id == update_data["role_id"]).first()
+        if not new_role:
+            raise HTTPException(status_code=400, detail="Invalid role_id")
+        if not new_role.is_creatable:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Role '{new_role.name}' cannot be assigned via API. Contact system administrator."
+            )
+        # Update the role_id
+        user.role_id = update_data["role_id"]
+        # Also update legacy role field if it exists
+        if hasattr(user, 'role'):
+            try:
+                user.role = RoleType(new_role.name)
+            except ValueError:
+                # If role name doesn't match enum, leave it as is
+                pass
+    
+    # Update other fields
     for field, value in update_data.items():
         if field == "password" and value:
             setattr(user, "password_hash", get_password_hash(value))
-        elif field != "password":
+        elif field not in ["password", "role_id"]:  # role_id already handled above
             setattr(user, field, value)
     
     db.commit()
@@ -234,7 +303,7 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    if user_id == current_user["user_id"]:
+    if user_id == current_user.user_id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
     
     # Soft delete

@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { mastersApi } from '../services/api';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -16,6 +19,9 @@ interface MedicineType {
 }
 
 export default function MedicineTypesPage() {
+    const { user } = useUser();
+    const { hasPermission } = usePermissions();
+    const navigate = useNavigate();
     const [items, setItems] = useState<MedicineType[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -23,6 +29,12 @@ export default function MedicineTypesPage() {
     const [formData, setFormData] = useState({ code: '', name: '', description: '' });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (user && !hasPermission('medicine_types.view')) {
+            navigate('/');
+        }
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -91,10 +103,12 @@ export default function MedicineTypesPage() {
             description="Manage medicine form types (tablet, capsule, syrup, etc.)"
             icon="medication"
             actions={
-                <Button variant="primary" onClick={openCreate}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Type
-                </Button>
+                hasPermission('medicine_types.create') && (
+                    <Button variant="primary" onClick={openCreate}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Type
+                    </Button>
+                )
             }
         >
             <Card className="!p-0">
@@ -107,9 +121,11 @@ export default function MedicineTypesPage() {
                         <span className="material-symbols-outlined text-5xl text-slate-300 mb-3">medication</span>
                         <h3 className="text-lg font-medium text-slate-900 dark:text-white">No Medicine Types</h3>
                         <p className="text-slate-500 mt-1">Create types like Tablet, Capsule, Syrup, Injection</p>
-                        <Button variant="primary" className="mt-4" onClick={openCreate}>
-                            Add First Type
-                        </Button>
+                        {hasPermission('medicine_types.create') && (
+                            <Button variant="primary" className="mt-4" onClick={openCreate}>
+                                Add First Type
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     <table className="w-full">
@@ -135,12 +151,16 @@ export default function MedicineTypesPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex justify-center gap-1">
-                                            <Button variant="secondary" onClick={() => openEdit(item)} className="!p-1.5">
-                                                <span className="material-symbols-outlined text-[18px]">edit</span>
-                                            </Button>
-                                            <Button variant="secondary" onClick={() => handleDelete(item)} className="!p-1.5 text-red-600">
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </Button>
+                                            {hasPermission('medicine_types.edit') && (
+                                                <Button variant="secondary" onClick={() => openEdit(item)} className="!p-1.5">
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </Button>
+                                            )}
+                                            {hasPermission('medicine_types.delete') && (
+                                                <Button variant="secondary" onClick={() => handleDelete(item)} className="!p-1.5 text-red-600">
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -26,6 +27,7 @@ interface Supplier {
 
 export default function SuppliersPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,10 +50,10 @@ export default function SuppliersPage() {
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('suppliers.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -137,10 +139,12 @@ export default function SuppliersPage() {
             description="Manage suppliers for stock entry and purchase orders"
             icon="local_shipping"
             actions={
-                <Button variant="primary" onClick={openCreateModal}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Supplier
-                </Button>
+                hasPermission('suppliers.create') && (
+                    <Button variant="primary" onClick={openCreateModal}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Supplier
+                    </Button>
+                )
             }
         >
             <Card className="space-y-6">
@@ -198,12 +202,16 @@ export default function SuppliersPage() {
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center gap-1">
-                                                <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
-                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                </button>
-                                                <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
+                                                {hasPermission('suppliers.edit') && (
+                                                    <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                    </button>
+                                                )}
+                                                {hasPermission('suppliers.delete') && (
+                                                    <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

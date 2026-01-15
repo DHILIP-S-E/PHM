@@ -673,6 +673,14 @@ class Attendance(Base):
     overtime_hours = Column(Float, default=0.0)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # State lifecycle fields for locking mechanism
+    record_status = Column(String(20), default='draft')  # draft, submitted, locked
+    submitted_by = Column(String(36), ForeignKey("users.id"))
+    submitted_at = Column(DateTime)
+    locked_by = Column(String(36), ForeignKey("users.id"))
+    locked_at = Column(DateTime)
+    unlock_reason = Column(Text)
 
     employee = relationship("Employee", back_populates="attendance_records")
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { purchaseRequestsApi, medicinesApi } from '../services/api';
 import { ShopSelect, WarehouseSelect, UrgencySelect } from '../components/MasterSelect';
+import SearchBar from '../components/SearchBar';
 
 interface PurchaseRequest {
     id: string;
@@ -18,6 +19,7 @@ export default function PurchaseRequestsList() {
     const [requests, setRequests] = useState<PurchaseRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
+    const [search, setSearch] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [medicines, setMedicines] = useState<any[]>([]);
     const [creating, setCreating] = useState(false);
@@ -28,7 +30,7 @@ export default function PurchaseRequestsList() {
         items: [{ medicine_id: '', quantity: 1 }]
     });
 
-    useEffect(() => { fetchRequests(); }, [statusFilter]);
+    useEffect(() => { fetchRequests(); }, [statusFilter, search]);
 
     useEffect(() => {
         if (showCreateModal) {
@@ -41,7 +43,9 @@ export default function PurchaseRequestsList() {
     const fetchRequests = async () => {
         try {
             setLoading(true);
-            const res = await purchaseRequestsApi.list({ status: statusFilter || undefined });
+            const params: any = { status: statusFilter || undefined };
+            if (search) params.search = search;
+            const res = await purchaseRequestsApi.list(params);
             setRequests(res.data?.items || res.data || []);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -77,7 +81,10 @@ export default function PurchaseRequestsList() {
             setShowCreateModal(false);
             setNewRequest({ shop_id: '', warehouse_id: '', priority: 'normal', items: [{ medicine_id: '', quantity: 1 }] });
             fetchRequests();
-        } catch (e) { console.error(e); alert('Failed to create request'); }
+        } catch (e: any) {
+            console.error(e);
+            alert(e.response?.data?.detail || 'Failed to create request');
+        }
         finally { setCreating(false); }
     };
 
@@ -121,48 +128,33 @@ export default function PurchaseRequestsList() {
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Purchase Requests</h1>
                     <p className="text-slate-500 dark:text-slate-400">Manage stock requests from shops to warehouses</p>
                 </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    New Request
-                </button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
-                    <p className="text-sm text-slate-500">Total Requests</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="min-w-[250px]">
+                        <SearchBar
+                            placeholder="Search requests..."
+                            value={search}
+                            onChange={setSearch}
+                        />
+                    </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    >
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="dispatched">Dispatched</option>
+                    </select>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        New Request
+                    </button>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
-                    <p className="text-sm text-slate-500">Pending</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
-                    <p className="text-sm text-slate-500">Approved</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
-                    <p className="text-sm text-slate-500">Rejected</p>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex gap-3">
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
-                >
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="dispatched">Dispatched</option>
-                </select>
             </div>
 
             {/* Table */}

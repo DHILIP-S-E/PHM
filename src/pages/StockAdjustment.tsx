@@ -69,17 +69,8 @@ export default function StockAdjustment() {
     const loadBatches = async (medicineId: string) => {
         try {
             const response = await medicinesApi.getBatches(medicineId);
-            let batchesData: Batch[] = [];
-            // Handle various response data structures safely
-            if (response.data) {
-                if (Array.isArray(response.data)) {
-                    batchesData = response.data;
-                } else if (Array.isArray(response.data.items)) {
-                    batchesData = response.data.items;
-                } else if (Array.isArray(response.data.data)) {
-                    batchesData = response.data.data;
-                }
-            }
+            // API returns: { medicine_id: "...", batches: [...] }
+            const batchesData = response.data?.batches || [];
             setBatches(batchesData);
         } catch (error) {
             console.error('Error loading batches:', error);
@@ -186,16 +177,28 @@ export default function StockAdjustment() {
                                 value={selectedBatch}
                                 onChange={(e) => setSelectedBatch(e.target.value)}
                                 required
-                                disabled={!selectedMedicine}
+                                disabled={!selectedMedicine || batches.length === 0}
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                             >
-                                <option value="">Select Batch</option>
+                                <option value="">
+                                    {!selectedMedicine
+                                        ? 'Select medicine first'
+                                        : batches.length === 0
+                                            ? 'No batches available'
+                                            : 'Select Batch'}
+                                </option>
                                 {batches.map(batch => (
                                     <option key={batch.id} value={batch.id}>
-                                        {batch.batch_number} (Qty: {batch.quantity})
+                                        {batch.batch_number} (Stock: {batch.quantity}, Exp: {new Date(batch.expiry_date).toLocaleDateString()})
                                     </option>
                                 ))}
                             </select>
+                            {selectedMedicine && batches.length === 0 && (
+                                <p className="mt-2 text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[16px]">info</span>
+                                    No batches found for this medicine. Add stock first.
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -221,8 +224,8 @@ export default function StockAdjustment() {
                                     type="button"
                                     onClick={() => setAdjustmentType('decrease')}
                                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${adjustmentType === 'decrease'
-                                            ? 'bg-white dark:bg-slate-700 text-red-600 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        ? 'bg-white dark:bg-slate-700 text-red-600 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                         }`}
                                 >
                                     Decrease (-)
@@ -231,8 +234,8 @@ export default function StockAdjustment() {
                                     type="button"
                                     onClick={() => setAdjustmentType('increase')}
                                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${adjustmentType === 'increase'
-                                            ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                         }`}
                                 >
                                     Increase (+)
@@ -272,8 +275,8 @@ export default function StockAdjustment() {
                             type="submit"
                             disabled={loading}
                             className={`w-full py-3 rounded-xl font-semibold text-white shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] ${loading
-                                    ? 'bg-slate-400 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                                ? 'bg-slate-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
                                 }`}
                         >
                             {loading ? 'Processing Adjustment...' : 'Confirm Adjustment'}

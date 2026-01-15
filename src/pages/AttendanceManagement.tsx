@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { employeesApi } from '../services/api';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
+import Button from '../components/Button';
+import Badge from '../components/Badge';
+import { type Column } from '../components/Table';
 
 interface Employee {
     id: string;
@@ -18,24 +24,30 @@ interface AttendanceRecord {
 }
 
 export default function AttendanceManagement() {
+    const location = useLocation();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
     const [viewMode, setViewMode] = useState<'mark' | 'summary'>('mark');
+    const [search, setSearch] = useState('');
 
+    // Update view mode when route changes
+    useEffect(() => {
+        const newMode = location.pathname.includes('/report') ? 'summary' : 'mark';
+        setViewMode(newMode);
+    }, [location.pathname]);
 
     useEffect(() => {
         loadEmployees();
     }, []);
 
     useEffect(() => {
-        if (viewMode === 'mark') {
+        if (viewMode === 'mark' || viewMode === 'summary') {
             loadAttendanceForDate();
         }
-    }, [selectedDate, employees]);
+    }, [selectedDate, employees]); // Reload when date changes
 
     const loadEmployees = async () => {
         try {
@@ -49,25 +61,50 @@ export default function AttendanceManagement() {
     };
 
     const loadAttendanceForDate = async () => {
-        // Initialize attendance state for all employees
-        const initialAttendance: Record<string, AttendanceRecord> = {};
-        employees.forEach(emp => {
-            initialAttendance[emp.id] = {
-                employee_id: emp.id,
-                date: selectedDate,
-                status: 'present',
-                check_in: '09:00',
-                check_out: '18:00'
-            };
-        });
-        setAttendance(initialAttendance);
+        try {
+            setLoading(true);
+
+            // Fetch attendance records for the selected date
+            const response = await employeesApi.getDailyAttendance(selectedDate);
+            const attendanceData = response.data;
+
+            // Build attendance state from the response
+            const attendanceState: Record<string, AttendanceRecord> = {};
+
+            attendanceData.attendance.forEach((record: any) => {
+                // Extract time from datetime string if it exists
+                const check_in_time = record.check_in ? record.check_in.split('T')[1]?.substr(0, 5) : '09:00';
+                const check_out_time = record.check_out ? record.check_out.split('T')[1]?.substr(0, 5) : '18:00';
+
+                attendanceState[record.employee_id] = {
+                    employee_id: record.employee_id,
+                    date: selectedDate,
+                    status: record.status || 'present',
+                    check_in: check_in_time,
+                    check_out: check_out_time
+                };
+            });
+
+            setAttendance(attendanceState);
+        } catch (error) {
+            console.error('Error loading attendance:', error);
+            window.toast?.error('Failed to load attendance records');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const updateAttendance = (employeeId: string, field: string, value: string) => {
         setAttendance(prev => ({
             ...prev,
             [employeeId]: {
-                ...prev[employeeId],
+                ...(prev[employeeId] || {
+                    employee_id: employeeId,
+                    date: selectedDate,
+                    status: 'present',
+                    check_in: '09:00',
+                    check_out: '18:00'
+                }),
                 [field]: value
             }
         }));
@@ -77,25 +114,35 @@ export default function AttendanceManagement() {
         setSubmitting(true);
         try {
             const records = Object.values(attendance);
+
             for (const record of records) {
-                await employeesApi.markAttendance(record);
+                // Convert time strings to datetime strings
+                const payload = {
+                    employee_id: record.employee_id,
+                    date: record.date,
+                    status: record.status,
+                    check_in: record.check_in ? `${record.date}T${record.check_in}:00` : undefined,
+                    check_out: record.check_out ? `${record.date}T${record.check_out}:00` : undefined,
+                };
+
+                await employeesApi.markAttendance(payload);
             }
-            setMessage({ type: 'success', text: 'Attendance saved successfully!' });
+            window.toast?.success('Attendance saved successfully!');
         } catch (error: any) {
-            setMessage({ type: 'error', text: error.response?.data?.detail || 'Failed to save attendance' });
+            // Handle Pydantic validation errors (422) similar to original
+            let errorMessage = 'Failed to save attendance';
+            if (error.response?.data?.detail) {
+                const detail = error.response.data.detail;
+                if (Array.isArray(detail)) {
+                    errorMessage = detail.map((e: any) => `${e.loc?.join('.') || 'Field'}: ${e.msg}`).join(', ');
+                } else if (typeof detail === 'string') {
+                    errorMessage = detail;
+                }
+            }
+            window.toast?.error(errorMessage);
         } finally {
             setSubmitting(false);
         }
-    };
-
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            present: '#10b981',
-            absent: '#ef4444',
-            half_day: '#f59e0b',
-            leave: '#8b5cf6'
-        };
-        return colors[status] || '#666';
     };
 
     const stats = {
@@ -106,321 +153,238 @@ export default function AttendanceManagement() {
         leave: Object.values(attendance).filter(a => a.status === 'leave').length
     };
 
-    return (
-        <div className="attendance-management">
-            <style>{`
-                .attendance-management {
-                    padding: 24px;
-                    max-width: 1200px;
-                    margin: 0 auto;
-                }
-                .page-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                }
-                .page-header h1 {
-                    font-size: 24px;
-                    font-weight: 600;
-                    color: #1a1a2e;
-                    margin: 0;
-                }
-                .view-toggle {
-                    display: flex;
-                    gap: 8px;
-                }
-                .toggle-btn {
-                    padding: 10px 20px;
-                    border: 1px solid #ddd;
-                    background: white;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-weight: 500;
-                }
-                .toggle-btn.active {
-                    background: #4a6cf7;
-                    color: white;
-                    border-color: #4a6cf7;
-                }
-                .controls-card {
-                    background: white;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                    padding: 20px;
-                    margin-bottom: 24px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 16px;
-                }
-                .date-picker {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-                .date-picker label {
-                    font-weight: 500;
-                    color: #333;
-                }
-                .date-picker input {
-                    padding: 10px 16px;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    font-size: 15px;
-                }
-                .stats-row {
-                    display: flex;
-                    gap: 24px;
-                }
-                .stat-item {
-                    text-align: center;
-                }
-                .stat-value {
-                    font-size: 24px;
-                    font-weight: 700;
-                }
-                .stat-label {
-                    font-size: 12px;
-                    color: #666;
-                    text-transform: uppercase;
-                }
-                .attendance-table {
-                    background: white;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                    overflow: hidden;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 14px 16px;
-                    text-align: left;
-                    border-bottom: 1px solid #eee;
-                }
-                th {
-                    background: #f8f9ff;
-                    font-weight: 600;
-                    color: #333;
-                    font-size: 13px;
-                    text-transform: uppercase;
-                }
-                tr:hover {
-                    background: #fafbff;
-                }
-                .employee-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-                .employee-avatar {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #4a6cf7, #6366f1);
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: 600;
-                }
-                .employee-name {
-                    font-weight: 500;
-                    color: #333;
-                }
-                .employee-code {
-                    font-size: 12px;
-                    color: #888;
-                }
-                .status-select {
-                    padding: 8px 12px;
-                    border: 1px solid #ddd;
-                    border-radius: 6px;
-                    font-size: 14px;
-                    cursor: pointer;
-                    min-width: 120px;
-                }
-                .time-input {
-                    padding: 8px 12px;
-                    border: 1px solid #ddd;
-                    border-radius: 6px;
-                    font-size: 14px;
-                    width: 100px;
-                }
-                .btn-submit {
-                    padding: 12px 32px;
-                    background: linear-gradient(135deg, #4a6cf7, #6366f1);
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: transform 0.2s;
-                }
-                .btn-submit:hover {
-                    transform: translateY(-2px);
-                }
-                .btn-submit:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-                .message {
-                    padding: 12px 20px;
-                    border-radius: 8px;
-                    margin-bottom: 16px;
-                }
-                .message.success {
-                    background: #d4edda;
-                    color: #155724;
-                }
-                .message.error {
-                    background: #f8d7da;
-                    color: #721c24;
-                }
-                .table-footer {
-                    padding: 16px;
-                    display: flex;
-                    justify-content: flex-end;
-                    background: #f8f9ff;
-                }
-                .loading {
-                    text-align: center;
-                    padding: 60px;
-                    color: #666;
-                }
-            `}</style>
+    // Filter employees for table
+    const filteredEmployees = employees.filter(emp =>
+        emp.name.toLowerCase().includes(search.toLowerCase()) ||
+        emp.employee_code.toLowerCase().includes(search.toLowerCase())
+    );
 
-            <div className="page-header">
-                <h1>📋 Attendance Management</h1>
-                <div className="view-toggle">
-                    <button
-                        className={`toggle-btn ${viewMode === 'mark' ? 'active' : ''}`}
-                        onClick={() => setViewMode('mark')}
-                    >
-                        Mark Attendance
-                    </button>
-                    <button
-                        className={`toggle-btn ${viewMode === 'summary' ? 'active' : ''}`}
-                        onClick={() => setViewMode('summary')}
-                    >
-                        Summary
-                    </button>
+    // Columns for Mark Mode
+    const markColumns: Column<Employee>[] = [
+        {
+            header: 'Employee',
+            key: 'name',
+            render: (emp) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                        {emp.name.charAt(0)}
+                    </div>
+                    <div>
+                        <div className="font-medium text-slate-900 dark:text-white">{emp.name}</div>
+                        <div className="text-xs text-slate-500">{emp.employee_code}</div>
+                    </div>
                 </div>
-            </div>
+            )
+        },
+        { header: 'Department', key: 'department', className: 'hidden sm:table-cell' },
+        {
+            header: 'Status',
+            key: 'id',
+            width: '200px',
+            render: (emp) => {
+                const status = attendance[emp.id]?.status || 'present';
+                const statusColors: any = {
+                    present: 'border-emerald-500 text-emerald-700 bg-emerald-50 dark:bg-emerald-900/10 dark:text-emerald-400',
+                    absent: 'border-red-500 text-red-700 bg-red-50 dark:bg-red-900/10 dark:text-red-400',
+                    half_day: 'border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-900/10 dark:text-amber-400',
+                    leave: 'border-purple-500 text-purple-700 bg-purple-50 dark:bg-purple-900/10 dark:text-purple-400'
+                };
 
-            {message.text && (
-                <div className={`message ${message.type}`}>
-                    {message.text}
-                </div>
-            )}
-
-            <div className="controls-card">
-                <div className="date-picker">
-                    <label>Date:</label>
+                return (
+                    <select
+                        className={`w-full px-3 py-1.5 rounded-lg border text-sm font-medium outline-none focus:ring-2 focus:ring-opacity-50 transition-all cursor-pointer appearance-none ${statusColors[status]}`}
+                        value={status}
+                        onChange={(e) => updateAttendance(emp.id, 'status', e.target.value)}
+                    >
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="half_day">Half Day</option>
+                        <option value="leave">Leave</option>
+                    </select>
+                );
+            }
+        },
+        {
+            header: 'Check In',
+            key: 'id',
+            render: (emp) => {
+                const status = attendance[emp.id]?.status;
+                const disabled = status === 'absent' || status === 'leave';
+                return (
                     <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
+                        type="time"
+                        className="w-28 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                        value={attendance[emp.id]?.check_in || '09:00'}
+                        onChange={(e) => updateAttendance(emp.id, 'check_in', e.target.value)}
+                        disabled={disabled}
                     />
-                </div>
-                <div className="stats-row">
-                    <div className="stat-item">
-                        <div className="stat-value" style={{ color: '#10b981' }}>{stats.present}</div>
-                        <div className="stat-label">Present</div>
-                    </div>
-                    <div className="stat-item">
-                        <div className="stat-value" style={{ color: '#ef4444' }}>{stats.absent}</div>
-                        <div className="stat-label">Absent</div>
-                    </div>
-                    <div className="stat-item">
-                        <div className="stat-value" style={{ color: '#f59e0b' }}>{stats.half_day}</div>
-                        <div className="stat-label">Half Day</div>
-                    </div>
-                    <div className="stat-item">
-                        <div className="stat-value" style={{ color: '#8b5cf6' }}>{stats.leave}</div>
-                        <div className="stat-label">Leave</div>
-                    </div>
-                </div>
-            </div>
+                );
+            }
+        },
+        {
+            header: 'Check Out',
+            key: 'id',
+            render: (emp) => {
+                const status = attendance[emp.id]?.status;
+                const disabled = status === 'absent' || status === 'leave';
+                return (
+                    <input
+                        type="time"
+                        className="w-28 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                        value={attendance[emp.id]?.check_out || '18:00'}
+                        onChange={(e) => updateAttendance(emp.id, 'check_out', e.target.value)}
+                        disabled={disabled}
+                    />
+                );
+            }
+        }
+    ];
 
-            {loading ? (
-                <div className="loading">Loading employees...</div>
-            ) : (
-                <div className="attendance-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>Department</th>
-                                <th>Status</th>
-                                <th>Check In</th>
-                                <th>Check Out</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {employees.map(employee => (
-                                <tr key={employee.id}>
-                                    <td>
-                                        <div className="employee-info">
-                                            <div className="employee-avatar">
-                                                {employee.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <div className="employee-name">{employee.name}</div>
-                                                <div className="employee-code">{employee.employee_code}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>{employee.department}</td>
-                                    <td>
-                                        <select
-                                            className="status-select"
-                                            value={attendance[employee.id]?.status || 'present'}
-                                            onChange={(e) => updateAttendance(employee.id, 'status', e.target.value)}
-                                            style={{ borderColor: getStatusColor(attendance[employee.id]?.status || 'present') }}
-                                        >
-                                            <option value="present">Present</option>
-                                            <option value="absent">Absent</option>
-                                            <option value="half_day">Half Day</option>
-                                            <option value="leave">Leave</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="time"
-                                            className="time-input"
-                                            value={attendance[employee.id]?.check_in || '09:00'}
-                                            onChange={(e) => updateAttendance(employee.id, 'check_in', e.target.value)}
-                                            disabled={attendance[employee.id]?.status === 'absent' || attendance[employee.id]?.status === 'leave'}
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="time"
-                                            className="time-input"
-                                            value={attendance[employee.id]?.check_out || '18:00'}
-                                            onChange={(e) => updateAttendance(employee.id, 'check_out', e.target.value)}
-                                            disabled={attendance[employee.id]?.status === 'absent' || attendance[employee.id]?.status === 'leave'}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <div className="table-footer">
+    // Columns for Summary Mode
+    const summaryColumns: Column<AttendanceRecord>[] = [
+        {
+            header: 'Employee',
+            key: 'employee_id',
+            render: (record) => {
+                const emp = employees.find(e => e.id === record.employee_id);
+                return (
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">
+                            {emp?.name.charAt(0)}
+                        </div>
+                        <div className="font-medium text-slate-900 dark:text-white">{emp?.name || 'Unknown'}</div>
+                    </div>
+                );
+            }
+        },
+        {
+            header: 'Code',
+            key: 'employee_id',
+            render: (record) => <span className="text-slate-500 font-mono">{employees.find(e => e.id === record.employee_id)?.employee_code}</span>
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            render: (record) => {
+                const variant = record.status === 'present' ? 'success' :
+                    record.status === 'absent' ? 'error' :
+                        record.status === 'half_day' ? 'warning' : 'info';
+                return <Badge variant={variant}>{record.status.replace('_', ' ')}</Badge>;
+            }
+        },
+        {
+            header: 'Check In',
+            key: 'check_in',
+            render: (record) => (record.status !== 'absent' && record.status !== 'leave') ? record.check_in : '-'
+        },
+        {
+            header: 'Check Out',
+            key: 'check_out',
+            render: (record) => (record.status !== 'absent' && record.status !== 'leave') ? record.check_out : '-'
+        },
+        {
+            header: 'Hours',
+            key: 'employee_id', // dummy key
+            render: (record) => {
+                if (record.status === 'absent' || record.status === 'leave' || !record.check_in || !record.check_out) return '-';
+                const [inH, inM] = record.check_in.split(':').map(Number);
+                const [outH, outM] = record.check_out.split(':').map(Number);
+                const hours = (outH + outM / 60) - (inH + inM / 60);
+                return <span className="font-medium">{hours.toFixed(1)}h</span>;
+            }
+        }
+    ];
+
+    // Summary data preparation
+    const summaryData = Object.values(attendance).filter(record => {
+        const emp = employees.find(e => e.id === record.employee_id);
+        if (!emp) return false;
+        return emp.name.toLowerCase().includes(search.toLowerCase()) ||
+            emp.employee_code.toLowerCase().includes(search.toLowerCase());
+    });
+
+    return (
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Attendance Management"
+                subtitle={`Manage attendance for ${employees.length} employees`}
+                actions={
+                    <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
                         <button
-                            className="btn-submit"
-                            onClick={submitAttendance}
-                            disabled={submitting}
+                            onClick={() => setViewMode('mark')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'mark' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                         >
-                            {submitting ? 'Saving...' : 'Save Attendance'}
+                            Mark Attendance
+                        </button>
+                        <button
+                            onClick={() => setViewMode('summary')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'summary' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            Summary Report
                         </button>
                     </div>
+                }
+            />
+
+            <UniversalListPage.KPICards>
+                <StatCard title="Present" value={stats.present} icon="check_circle" trend="neutral" isActive={false} />
+                <StatCard title="Absent" value={stats.absent} icon="cancel" changeType="down" isActive={false} />
+                <StatCard title="Half Day" value={stats.half_day} icon="hourglass_bottom" changeType="neutral" isActive={false} />
+                <StatCard title="On Leave" value={stats.leave} icon="flight_takeoff" changeType="neutral" isActive={false} />
+            </UniversalListPage.KPICards>
+
+            <UniversalListPage.ListControls
+                title={viewMode === 'mark' ? "Daily Attendance" : "Attendance Report"}
+                count={viewMode === 'mark' ? filteredEmployees.length : summaryData.length}
+                searchProps={{
+                    value: search,
+                    onChange: setSearch,
+                    placeholder: "Search employees..."
+                }}
+                actions={
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
+                            <span className="text-sm font-medium text-slate-500">Date:</span>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent border-none p-0 text-sm font-medium text-slate-900 dark:text-white focus:ring-0"
+                            />
+                        </div>
+                    </div>
+                }
+            />
+
+            <UniversalListPage.DataTable
+                columns={viewMode === 'mark' ? markColumns : summaryColumns}
+                data={viewMode === 'mark' ? filteredEmployees : summaryData}
+                loading={loading}
+                emptyMessage="No employees found."
+            />
+
+            {viewMode === 'mark' && !loading && (
+                <div className="flex justify-end pt-4 pb-8 animate-fadeIn">
+                    <Button
+                        variant="primary"
+                        onClick={submitAttendance}
+                        disabled={submitting}
+                        className="w-full sm:w-auto min-w-[200px] !py-3 !text-base shadow-lg shadow-blue-500/20"
+                    >
+                        {submitting ? (
+                            <>
+                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined mr-2">save</span>
+                                Save Daily Attendance
+                            </>
+                        )}
+                    </Button>
                 </div>
             )}
-        </div>
+        </UniversalListPage>
     );
 }

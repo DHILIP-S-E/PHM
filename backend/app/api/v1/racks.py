@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import Rack, Warehouse, MedicalShop
 from app.api.v1.auth import get_current_user
+from app.core.security import require_permission, AuthContext
 
 router = APIRouter()
 
@@ -70,7 +71,7 @@ async def list_racks(
     shop_id: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["racks.view"]))
 ):
     """List all racks with pagination and filters"""
     query = db.query(Rack)
@@ -134,7 +135,7 @@ async def list_racks(
 async def get_rack(
     rack_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["racks.view"]))
 ):
     """Get a single rack by ID"""
     rack = db.query(Rack).filter(Rack.id == rack_id).first()
@@ -175,7 +176,7 @@ async def get_rack(
 async def create_rack(
     rack_data: RackCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["racks.create"]))
 ):
     """Create a new rack"""
     # Check for duplicate rack number
@@ -234,7 +235,7 @@ async def update_rack(
     rack_id: str,
     rack_data: RackUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["racks.update", "racks.edit"]))
 ):
     """Update a rack"""
     rack = db.query(Rack).filter(Rack.id == rack_id).first()
@@ -272,7 +273,7 @@ async def update_rack(
 async def delete_rack(
     rack_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_permission(["racks.delete"]))
 ):
     """Delete a rack (soft delete by setting is_active=False)"""
     rack = db.query(Rack).filter(Rack.id == rack_id).first()

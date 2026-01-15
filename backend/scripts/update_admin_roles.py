@@ -34,6 +34,7 @@ def update_admin_roles():
             'categories',
             'units',
             'hsn',
+            'racks',
             'gst',
         ]
         

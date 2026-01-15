@@ -244,8 +244,23 @@ export const employeesApi = {
 
     markAttendance: (data: any) => api.post('/employees/attendance', data),
 
+    getDailyAttendance: (date: string) =>
+        api.get('/employees/attendance/daily', { params: { date } }),
+
     getAttendance: (id: string, params?: { month?: number; year?: number }) =>
         api.get(`/employees/attendance/${id}`, { params }),
+
+    submitAttendance: (data: { date: string }) =>
+        api.post('/employees/attendance/submit', data),
+
+    lockAttendance: (data: { date: string }) =>
+        api.post('/employees/attendance/lock', data),
+
+    unlockAttendance: (data: { date: string; reason?: string }) =>
+        api.post('/employees/attendance/unlock', data),
+
+    getSalaryRecords: (params?: { month?: number; year?: number; employee_id?: string }) =>
+        api.get('/employees/salary', { params }),
 
     processSalary: (data: any) => api.post('/employees/salary/process', data),
 };

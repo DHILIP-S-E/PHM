@@ -32,7 +32,7 @@ class AttendanceStatus(str, Enum):
 class EmployeeBase(BaseModel):
     employee_code: str
     name: str = Field(min_length=2, max_length=100)
-    email: EmailStr
+    email: Optional[EmailStr] = None
     phone: str
     designation: str
     department: str
@@ -51,6 +51,7 @@ class EmployeeBase(BaseModel):
 
 
 class EmployeeCreate(EmployeeBase):
+    employee_code: Optional[str] = None
     shop_id: Optional[str] = None
     warehouse_id: Optional[str] = None
     user_id: Optional[str] = None

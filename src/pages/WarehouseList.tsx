@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { warehousesApi, shopsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
-import PageLayout from '../components/PageLayout';
-import Table, { type Column } from '../components/Table';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
 import Button from '../components/Button';
-import Input from '../components/Input';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import { type Column } from '../components/Table';
 
 interface Warehouse {
     id: string;
@@ -37,6 +37,7 @@ export default function WarehouseList() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    const [activeCount, setActiveCount] = useState(0); // For KPI
     const pageSize = 10;
 
     // View details modal
@@ -46,7 +47,18 @@ export default function WarehouseList() {
 
     useEffect(() => {
         fetchWarehouses();
+        fetchStats();
     }, [currentPage, search, statusFilter]);
+
+    const fetchStats = async () => {
+        try {
+            // Rough estimate for KPI if API doesn't support direct stats
+            const activeRes = await warehousesApi.list({ status: 'active', size: 1 });
+            setActiveCount(activeRes.data.total || 0);
+        } catch (error) {
+            console.error("Failed to fetch stats", error);
+        }
+    }
 
     const fetchWarehouses = async () => {
         try {
@@ -86,6 +98,7 @@ export default function WarehouseList() {
         try {
             await warehousesApi.delete(warehouse.id);
             fetchWarehouses();
+            fetchStats();
         } catch (err: any) {
             console.error('Failed to delete warehouse:', err);
             alert(err.response?.data?.detail || 'Failed to delete warehouse');
@@ -103,7 +116,7 @@ export default function WarehouseList() {
                     </div>
                     <div>
                         <div className="font-medium text-slate-900 dark:text-white">{warehouse.name}</div>
-                        <div className="text-xs text-slate-500">{warehouse.code}</div>
+                        <div className="text-xs text-slate-500 font-mono">{warehouse.code}</div>
                     </div>
                 </div>
             )
@@ -111,16 +124,22 @@ export default function WarehouseList() {
         {
             header: 'Location',
             key: 'city',
-            render: (warehouse) => `${warehouse.city}, ${warehouse.state}`,
+            render: (warehouse) => (
+                <div className="flex flex-col">
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{warehouse.city}</span>
+                    <span className="text-xs text-slate-500">{warehouse.state}</span>
+                </div>
+            ),
             className: 'hidden sm:table-cell'
         },
         {
             header: 'Shops',
             key: 'shop_count',
             render: (warehouse) => (
-                <span className="font-medium text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-center font-medium text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-[16px] mr-1 text-slate-400">storefront</span>
                     {warehouse.shop_count || 0}
-                </span>
+                </div>
             ),
             align: 'center'
         },
@@ -138,15 +157,30 @@ export default function WarehouseList() {
             header: 'Actions',
             key: 'id',
             render: (warehouse) => (
-                <div className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => openViewModal(warehouse)} className="!p-1.5 h-8 w-8 justify-center">
+                <div className="flex justify-end gap-1">
+                    <Button
+                        variant="ghost"
+                        onClick={() => openViewModal(warehouse)}
+                        className="!p-1.5 h-8 w-8 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                        title="View Details"
+                    >
                         <span className="material-symbols-outlined text-[18px]">visibility</span>
                     </Button>
-                    <Button variant="secondary" onClick={() => navigate(`/warehouses/edit/${warehouse.id}`)} className="!p-1.5 h-8 w-8 justify-center">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate(`/warehouses/edit/${warehouse.id}`)}
+                        className="!p-1.5 h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                        title="Edit Warehouse"
+                    >
                         <span className="material-symbols-outlined text-[18px]">edit</span>
                     </Button>
                     {canDelete && (
-                        <Button variant="secondary" onClick={() => handleDelete(warehouse)} className="!p-1.5 h-8 w-8 justify-center text-red-600 hover:bg-red-50 hover:text-red-700">
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleDelete(warehouse)}
+                            className="!p-1.5 h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                            title="Delete Warehouse"
+                        >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -157,76 +191,81 @@ export default function WarehouseList() {
     ];
 
     return (
-        <PageLayout
-            title="Warehouses"
-            description={`Manage ${totalItems} warehouses in your network`}
-            actions={
-                <Button variant="primary" onClick={() => navigate('/warehouses/add')}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Warehouse
-                </Button>
-            }
-        >
-            <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex-1">
-                        <Input
-                            placeholder="Search warehouses..."
-                            value={search}
-                            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                            className="w-full"
-                        />
-                    </div>
-                    <div className="w-full sm:w-[200px]">
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                        >
-                            <option value="all">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="suspended">Suspended</option>
-                        </select>
-                    </div>
-                    <Button variant="secondary" onClick={fetchWarehouses}>
-                        <span className="material-symbols-outlined">refresh</span>
+        <UniversalListPage>
+            {/* Zone 1: Page Header */}
+            <UniversalListPage.Header
+                title="Warehouses"
+                subtitle={`Manage ${totalItems} warehouses in your network`}
+                actions={
+                    <Button variant="primary" onClick={() => navigate('/warehouses/add')}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Warehouse
                     </Button>
-                </div>
+                }
+            />
 
-                <Table
-                    columns={columns}
-                    data={warehouses}
-                    loading={loading}
-                    emptyMessage="No warehouses found. Add your first warehouse."
+            {/* Zone 2: KPI / Summary Cards */}
+            <UniversalListPage.KPICards>
+                <StatCard
+                    title="Total Warehouses"
+                    value={totalItems}
+                    icon="warehouse"
+                    onClick={() => setStatusFilter('all')}
+                    isActive={statusFilter === 'all'}
                 />
+                <StatCard
+                    title="Active Warehouses"
+                    value={activeCount}
+                    icon="check_circle"
+                    onClick={() => setStatusFilter('active')}
+                    isActive={statusFilter === 'active'}
+                    trend="neutral"
+                />
+                {/* Placeholder for future specific metrics */}
+                <div className="hidden sm:block"></div>
+                <div className="hidden lg:block"></div>
+            </UniversalListPage.KPICards>
 
-                {Boolean(totalItems > pageSize) && (
-                    <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-500">
-                            Page {currentPage} of {Math.ceil(totalItems / pageSize)}
-                        </p>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="!px-3 !py-1"
-                            >
-                                Prev
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalItems / pageSize), p + 1))}
-                                disabled={currentPage === Math.ceil(totalItems / pageSize)}
-                                className="!px-3 !py-1"
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* Zone 3 & 4 Merged: List Controls Embedded in Table */}
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={warehouses}
+                loading={loading}
+                emptyMessage="No warehouses found. Add your first warehouse."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(totalItems / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: totalItems,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Warehouse List"
+                        count={totalItems}
+                        searchProps={{
+                            value: search,
+                            onChange: (val) => { setSearch(val); setCurrentPage(1); },
+                            placeholder: "Search warehouses..."
+                        }}
+                        actions={
+                            <div className="flex items-center">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                                    className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                </select>
+                            </div>
+                        }
+                        embedded={true}
+                    />
+                }
+            />
 
             {/* View Warehouse Details Modal */}
             <Modal
@@ -277,7 +316,7 @@ export default function WarehouseList() {
 
                             {loadingShops ? (
                                 <div className="text-center py-4">
-                                    <div className="spinner"></div>
+                                    <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
                                 </div>
                             ) : connectedShops.length > 0 ? (
                                 <div className="grid gap-3">
@@ -307,6 +346,6 @@ export default function WarehouseList() {
                     </div>
                 )}
             </Modal>
-        </PageLayout>
+        </UniversalListPage>
     );
 }

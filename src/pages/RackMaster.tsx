@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { warehousesApi, racksApi } from '../services/api';
 
 interface Rack {
@@ -12,6 +15,9 @@ interface Rack {
 }
 
 export default function RackMaster() {
+    const { user } = useUser();
+    const { hasPermission } = usePermissions();
+    const navigate = useNavigate();
     const [racks, setRacks] = useState<Rack[]>([]);
     const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +27,12 @@ export default function RackMaster() {
     const [newRack, setNewRack] = useState({ rack_name: '', rack_number: '', warehouse_id: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (user && !hasPermission('racks.view')) {
+            navigate('/');
+        }
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => {
         loadData();
@@ -100,13 +112,15 @@ export default function RackMaster() {
                         Manage racks for physical stock location. Racks appear in dropdowns across the system.
                     </p>
                 </div>
-                <button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add Rack
-                </button>
+                {hasPermission('racks.create') && (
+                    <button
+                        onClick={() => setShowAddForm(!showAddForm)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        Add Rack
+                    </button>
+                )}
             </div>
 
             {/* Inline Add Form (NO MODAL) */}
@@ -274,19 +288,23 @@ export default function RackMaster() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center gap-1">
-                                            <button
-                                                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-primary transition-colors"
-                                                title="Edit"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteRack(rack.id)}
-                                                className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
-                                                title="Delete"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">delete</span>
-                                            </button>
+                                            {hasPermission('racks.edit') && (
+                                                <button
+                                                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-primary transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">edit</span>
+                                                </button>
+                                            )}
+                                            {hasPermission('racks.delete') && (
+                                                <button
+                                                    onClick={() => handleDeleteRack(rack.id)}
+                                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

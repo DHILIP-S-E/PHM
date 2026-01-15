@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -20,6 +21,7 @@ interface AdjustmentReason {
 
 export default function AdjustmentReasonsPage() {
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const [items, setItems] = useState<AdjustmentReason[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,10 +37,10 @@ export default function AdjustmentReasonsPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (user && user.role !== 'super_admin') {
+        if (user && !hasPermission('adjustment_reasons.view')) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, hasPermission]);
 
     useEffect(() => { loadData(); }, []);
 
@@ -120,10 +122,12 @@ export default function AdjustmentReasonsPage() {
             description="Manage stock adjustment reasons for inventory corrections"
             icon="swap_vert"
             actions={
-                <Button variant="primary" onClick={openCreateModal}>
-                    <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                    Add Reason
-                </Button>
+                hasPermission('adjustment_reasons.create') && (
+                    <Button variant="primary" onClick={openCreateModal}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Reason
+                    </Button>
+                )
             }
         >
             <Card className="space-y-6">
@@ -162,12 +166,16 @@ export default function AdjustmentReasonsPage() {
                                         <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{item.description || '-'}</td>
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center gap-1">
-                                                <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
-                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                </button>
-                                                <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
+                                                {hasPermission('adjustment_reasons.edit') && (
+                                                    <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                    </button>
+                                                )}
+                                                {hasPermission('adjustment_reasons.delete') && (
+                                                    <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
