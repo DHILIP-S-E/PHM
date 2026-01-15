@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { shopsApi } from '../services/api';
-import type { MedicalShop } from '../types';
-import { ShopTypeSelect, WarehouseSelect, StatusSelect } from '../components/MasterSelect';
+import { shopsApi, warehousesApi } from '../services/api';
+import type { MedicalShop, Warehouse } from '../types';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -14,6 +13,7 @@ export default function EditMedicalShop() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [shop, setShop] = useState<Partial<MedicalShop>>({
         name: '',
         code: '',
@@ -31,10 +31,20 @@ export default function EditMedicalShop() {
     });
 
     useEffect(() => {
+        fetchWarehouses();
         if (shopId) {
             fetchShop();
         }
     }, [shopId]);
+
+    const fetchWarehouses = async () => {
+        try {
+            const response = await warehousesApi.list({ status: 'active', size: 100 });
+            setWarehouses(response.data.items || []);
+        } catch (err) {
+            console.error('Failed to fetch warehouses:', err);
+        }
+    };
 
     const fetchShop = async () => {
         try {
@@ -115,17 +125,31 @@ export default function EditMedicalShop() {
                                 />
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Shop Type</label>
-                                    <ShopTypeSelect
+                                    <select
                                         value={shop.shop_type || 'retail'}
-                                        onChange={(val) => updateField('shop_type', val)}
-                                    />
+                                        onChange={(e) => updateField('shop_type', e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                    >
+                                        <option value="retail">Retail</option>
+                                        <option value="wholesale">Wholesale</option>
+                                        <option value="hospital">Hospital</option>
+                                        <option value="clinic">Clinic</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Linked Warehouse</label>
-                                    <WarehouseSelect
+                                    <select
                                         value={shop.warehouse_id || ''}
-                                        onChange={(val) => updateField('warehouse_id', val)}
-                                    />
+                                        onChange={(e) => updateField('warehouse_id', e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                    >
+                                        <option value="">Select Warehouse</option>
+                                        {warehouses.map(w => (
+                                            <option key={w.id} value={w.id}>
+                                                {w.name} ({w.code})
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </Card>
@@ -212,11 +236,15 @@ export default function EditMedicalShop() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Current Status</label>
-                                    <StatusSelect
-                                        entityType="shop"
+                                    <select
                                         value={shop.status || 'active'}
-                                        onChange={(val) => updateField('status', val)}
-                                    />
+                                        onChange={(e) => updateField('status', e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="suspended">Suspended</option>
+                                    </select>
                                     <p className="text-xs text-slate-500 mt-2">Current operational status of this shop</p>
                                 </div>
                             </div>

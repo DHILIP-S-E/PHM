@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { employeesApi } from '../services/api';
-import UniversalListPage from '../components/UniversalListPage';
+import UniversalListPage from '../components/UniversalListPage'; // Reverted to UniversalListPage
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
@@ -333,11 +333,11 @@ export default function AttendanceManagement() {
                 <StatCard title="On Leave" value={stats.leave} icon="flight_takeoff" changeType="neutral" isActive={false} />
             </UniversalListPage.KPICards>
 
-            {/* Zone 3 & 4 Merged: Controls Embedded in Table */}
+            {/* Zero Layout: Controls Embedded in Table */}
             {viewMode === 'mark' ? (
-                <UniversalListPage.DataTable
-                    columns={markColumns}
+                <UniversalListPage.DataTable<Employee>
                     data={filteredEmployees}
+                    columns={markColumns}
                     loading={loading}
                     emptyMessage="No employees found."
                     headerSlot={
@@ -367,9 +367,9 @@ export default function AttendanceManagement() {
                     }
                 />
             ) : (
-                <UniversalListPage.DataTable
-                    columns={summaryColumns}
+                <UniversalListPage.DataTable<AttendanceRecord>
                     data={summaryData}
+                    columns={summaryColumns}
                     loading={loading}
                     emptyMessage="No attendance records found."
                     headerSlot={
