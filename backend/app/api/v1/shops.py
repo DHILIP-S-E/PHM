@@ -189,7 +189,7 @@ def delete_shop(
         raise HTTPException(status_code=404, detail="Shop not found")
     
     # CASCADE DELETE LOGIC
-    from app.db.models import ShopStock, User, Employee, Customer, Invoice, Return
+    from app.db.models import ShopStock, User, Employee, Customer, Invoice, Return, Rack
     
     # 1. Delete all Returns linked to this shop (must be before Invoices due to FK)
     # Returns have a direct shop_id FK OR indirect via Invoice. 
@@ -207,6 +207,9 @@ def delete_shop(
     from app.db.models import Dispatch, PurchaseRequest
     db.query(Dispatch).filter(Dispatch.shop_id == shop_id).delete()
     db.query(PurchaseRequest).filter(PurchaseRequest.shop_id == shop_id).delete()
+    
+    # 3.2 Delete Racks linked to this shop
+    db.query(Rack).filter(Rack.shop_id == shop_id).delete()
     
     # 4. Unlink Users
     users = db.query(User).filter(User.assigned_shop_id == shop_id).all()
