@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
@@ -10,7 +10,13 @@ import Button from '../components/Button';
 
 export default function ShopAdd() {
     const navigate = useNavigate();
-    const { isLoading: isMasterLoading } = useMasterData();
+    const { isLoading: isMasterLoading, refresh } = useMasterData();
+
+    // Force refresh master data on mount to ensure we have the latest warehouse list
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
+
     const [formData, setFormData] = useState({
         name: '',
         code: '',

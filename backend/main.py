@@ -58,7 +58,8 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "https://pmsmdu.netlify.app",
-        "http://pms.npmtech.in/",
+        "https://pms.npmtech.in",
+        "https://phm-r3th.onrender.com",
         "*",  # Allow all origins as fallback
     ],
     allow_credentials=True,
@@ -79,7 +80,10 @@ async def health_check():
 # --- SPA Fallback Configuration ---
 # Mount static assets from the frontend build directory
 # Assuming main.py is in backend/ and dist/ is in the project root
-dist_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dist")
+# Use abspath to ensure it works regardless of CWD of execution
+current_file = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(current_file))
+dist_dir = os.path.join(project_root, "dist")
 
 if os.path.exists(dist_dir):
     # Mount /assets to serve JS/CSS/Images

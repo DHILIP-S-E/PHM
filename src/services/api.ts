@@ -52,7 +52,8 @@ api.interceptors.response.use(
         const originalRequest = error.config;
 
         // Handle 401 - token expired
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip 401 handling for login endpoint to prevent loops
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/login')) {
             if (isSessionExpired) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -81,14 +82,18 @@ api.interceptors.response.use(
                 // Refresh failed - proceed to session expired handling
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login?expired=true';
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login?expired=true';
+                }
                 return Promise.reject(refreshError);
             }
 
             // If we are here, refresh failed or no refresh token (logic fell through)
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-            window.location.href = '/login?expired=true';
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login?expired=true';
+            }
             return Promise.reject(error);
         }
 

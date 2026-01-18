@@ -93,32 +93,44 @@ def list_users(
     if role:
         query = query.filter(User.role == role)
     
-    # Sort by creation date descending (newest first)
-    query = query.order_by(User.created_at.desc())
-    
-    total = query.count()
-    users = query.offset((page - 1) * size).limit(size).all()
-    
-    return {
-        "items": [
-            {
-                "id": u.id,
-                "email": u.email,
-                "full_name": u.full_name,
-                "phone": u.phone,
-                "role": u.role.value if hasattr(u.role, 'value') else (str(u.role) if u.role else None),
-                "is_active": u.is_active,
-                "last_login": u.last_login,
-                "created_at": u.created_at,
-                "assigned_warehouse_id": u.assigned_warehouse_id,
-                "assigned_shop_id": u.assigned_shop_id
-            }
-            for u in users
-        ],
-        "total": total,
-        "page": page,
-        "size": size
-    }
+    try:
+        # Sort by creation date descending (newest first)
+        query = query.order_by(User.created_at.desc())
+        
+        total = query.count()
+        users = query.offset((page - 1) * size).limit(size).all()
+        
+        items = []
+        for u in users:
+            try:
+                role_val = u.role.value if hasattr(u.role, 'value') else (str(u.role) if u.role else None)
+                items.append({
+                    "id": u.id,
+                    "email": u.email,
+                    "full_name": u.full_name,
+                    "phone": u.phone,
+                    "role": role_val,
+                    "is_active": u.is_active,
+                    "last_login": u.last_login,
+                    "created_at": u.created_at,
+                    "assigned_warehouse_id": u.assigned_warehouse_id,
+                    "assigned_shop_id": u.assigned_shop_id
+                })
+            except Exception as e:
+                logger.error(f"Error serializing user {u.id}: {str(e)}")
+                # Skip problematic user or adding partial data? 
+                # Better to skip to avoid crashing the whole list
+                continue
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "size": size
+        }
+    except Exception as e:
+        logger.error(f"Error listing users: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @router.post("")

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { warehousesApi } from '../services/api';
+import { useMasterData } from '../contexts/MasterDataContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -8,6 +9,7 @@ import Button from '../components/Button';
 
 export default function WarehouseAdd() {
     const navigate = useNavigate();
+    const { refresh } = useMasterData();
     const [formData, setFormData] = useState({
         name: '',
         code: '',
@@ -36,6 +38,8 @@ export default function WarehouseAdd() {
         try {
             console.log('Sending warehouse data:', formData);
             await warehousesApi.create(formData);
+            // Refresh master data to ensure the new warehouse appears in dropdowns immediately
+            await refresh();
             navigate('/warehouses');
         } catch (err: any) {
             console.error('Failed to create warehouse:', err);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
@@ -10,7 +10,12 @@ import Button from '../components/Button';
 
 export default function MedicineAdd() {
     const navigate = useNavigate();
-    const { isLoading: mastersLoading } = useMasterData();
+    const { isLoading: mastersLoading, refresh } = useMasterData();
+
+    // Force refresh master data to ensure categories/brands are up to date
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
 
     const [formData, setFormData] = useState({
         name: '',
