@@ -56,7 +56,7 @@ interface Customer {
 export default function POSBilling() {
     const navigate = useNavigate();
     const { activeEntity } = useOperationalContext();
-    const { getMaster } = useMasterData();
+    const { getMaster, isLoading: mastersLoading } = useMasterData();
 
     // Enforce Shop Context
     useEffect(() => {
@@ -66,6 +66,17 @@ export default function POSBilling() {
     }, [activeEntity, navigate]);
 
     if (!activeEntity || activeEntity.type !== 'shop') return null;
+
+    if (mastersLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="spinner"></div>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Master Data...</p>
+                </div>
+            </div>
+        );
+    }
 
     const shopId = activeEntity.id;
     const paymentMethods = getMaster('payment_methods');

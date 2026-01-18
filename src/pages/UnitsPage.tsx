@@ -8,6 +8,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 import { type Column } from '../components/Table';
 
@@ -90,13 +91,28 @@ export default function UnitsPage() {
         }
     };
 
-    const handleDelete = async (unit: Unit) => {
-        if (!confirm(`Delete "${unit.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
+
+    const handleDeleteClick = (unit: Unit) => {
+        setUnitToDelete(unit);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!unitToDelete) return;
+
         try {
-            await mastersApi.deleteUnit(unit.id);
+            await mastersApi.deleteUnit(unitToDelete.id);
+            window.toast?.success('Unit deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete');
+            console.error('Failed to delete unit:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete unit');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setUnitToDelete(null);
         }
     };
 
@@ -152,7 +168,7 @@ export default function UnitsPage() {
                         </Button>
                     )}
                     {hasPermission('units.delete') && (
-                        <Button variant="ghost" onClick={() => handleDelete(unit)} className="!p-1.5 h-8 w-8 text-red-600">
+                        <Button variant="ghost" onClick={() => handleDeleteClick(unit)} className="!p-1.5 h-8 w-8 text-red-600">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -241,6 +257,15 @@ export default function UnitsPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Unit"
+                message={`Are you sure you want to delete "${unitToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Unit"
+            />
         </UniversalListPage>
     );
 }

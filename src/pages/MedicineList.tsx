@@ -7,6 +7,7 @@ import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
 interface Medicine {
@@ -68,15 +69,28 @@ export default function MedicineList() {
         }
     };
 
-    const handleDelete = async (medicine: Medicine) => {
-        if (!confirm(`Are you sure you want to delete "${medicine.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [medicineToDelete, setMedicineToDelete] = useState<Medicine | null>(null);
+
+    const handleDeleteClick = (medicine: Medicine) => {
+        setMedicineToDelete(medicine);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!medicineToDelete) return;
 
         try {
-            await medicinesApi.delete(medicine.id);
+            await medicinesApi.delete(medicineToDelete.id);
+            window.toast?.success('Medicine deleted successfully');
             fetchMedicines();
         } catch (err: any) {
             console.error('Failed to delete medicine:', err);
-            alert(err.response?.data?.detail || 'Failed to delete medicine');
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete medicine');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setMedicineToDelete(null);
         }
     };
 
@@ -175,7 +189,7 @@ export default function MedicineList() {
                     {canDelete && (
                         <Button
                             variant="ghost"
-                            onClick={() => handleDelete(medicine)}
+                            onClick={() => handleDeleteClick(medicine)}
                             className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50"
                             title="Delete Medicine"
                         >
@@ -241,6 +255,14 @@ export default function MedicineList() {
                         embedded={true}
                     />
                 }
+            />
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Medicine"
+                message={`Are you sure you want to delete "${medicineToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Medicine"
             />
         </UniversalListPage>
     );

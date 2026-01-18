@@ -3,6 +3,7 @@ import { rolesApi, usersApi, permissionsApi } from '../services/api';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useUser } from '../contexts/UserContext';
 import { PERMISSIONS } from '../types/permissions';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface Permission {
     id: string;
@@ -132,13 +133,28 @@ export default function RolesPermissionsPage() {
         }
     };
 
-    const handleDelete = async (role: Role) => {
-        if (!confirm(`Are you sure you want to delete "${role.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
+    const handleDeleteClick = (role: Role) => {
+        setRoleToDelete(role);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!roleToDelete) return;
+
         try {
-            await rolesApi.delete(role.id);
+            await rolesApi.delete(roleToDelete.id);
+            window.toast?.success('Role deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete role');
+            console.error('Failed to delete role:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete role');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setRoleToDelete(null);
         }
     };
 
@@ -329,7 +345,7 @@ export default function RolesPermissionsPage() {
                                                     <span className="material-symbols-outlined text-[18px]">edit</span>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(role)}
+                                                    onClick={() => handleDeleteClick(role)}
                                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                                                 >
                                                     <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -507,6 +523,15 @@ export default function RolesPermissionsPage() {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Role"
+                message={`Are you sure you want to delete "${roleToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Role"
+            />
         </div>
     );
 }

@@ -8,6 +8,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
 interface AdjustmentReason {
@@ -108,13 +109,28 @@ export default function AdjustmentReasonsPage() {
         }
     };
 
-    const handleDelete = async (item: AdjustmentReason) => {
-        if (!confirm(`Delete "${item.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<AdjustmentReason | null>(null);
+
+    const handleDeleteClick = (item: AdjustmentReason) => {
+        setItemToDelete(item);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
         try {
-            await mastersApi.deleteAdjustmentReason(item.id);
+            await mastersApi.deleteAdjustmentReason(itemToDelete.id);
+            window.toast?.success('Adjustment reason deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete');
+            console.error('Failed to delete adjustment reason:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete adjustment reason');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
         }
     };
 
@@ -154,8 +170,8 @@ export default function AdjustmentReasonsPage() {
             key: 'adjustment_type',
             render: (item) => (
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${item.adjustment_type === 'increase'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}>
                     <span className="material-symbols-outlined text-[14px]">
                         {item.adjustment_type === 'increase' ? 'arrow_upward' : 'arrow_downward'}
@@ -176,7 +192,7 @@ export default function AdjustmentReasonsPage() {
                         </Button>
                     )}
                     {hasPermission('adjustment_reasons.delete') && (
-                        <Button variant="ghost" onClick={() => handleDelete(item)} className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50">
+                        <Button variant="ghost" onClick={() => handleDeleteClick(item)} className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -263,6 +279,15 @@ export default function AdjustmentReasonsPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Adjustment Reason"
+                message={`Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Reason"
+            />
         </UniversalListPage>
     );
 }

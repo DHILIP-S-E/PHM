@@ -8,6 +8,7 @@ interface PageLayoutProps {
     actions?: React.ReactNode;
     children: React.ReactNode;
     className?: string;
+    loading?: boolean;
 }
 
 export default function PageLayout({
@@ -17,7 +18,8 @@ export default function PageLayout({
     icon,
     actions,
     children,
-    className = ''
+    className = '',
+    loading = false
 }: PageLayoutProps) {
     return (
         <div className={`flex flex-col h-full ${className}`}>
@@ -53,7 +55,16 @@ export default function PageLayout({
 
             {/* Page Content */}
             <div className="flex-1">
-                {children}
+                {loading ? (
+                    <div className="flex-1 flex items-center justify-center min-h-[400px] h-full">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="spinner"></div>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Master Data...</p>
+                        </div>
+                    </div>
+                ) : (
+                    children
+                )}
             </div>
         </div>
     );

@@ -8,6 +8,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 import { type Column } from '../components/Table';
 
@@ -98,14 +99,28 @@ export default function RackMaster() {
         }
     };
 
-    const handleDeleteRack = async (id: string) => {
-        if (confirm('Are you sure you want to delete this rack?')) {
-            try {
-                await racksApi.delete(id);
-                await loadData();
-            } catch (err) {
-                console.error('Failed to delete rack:', err);
-            }
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [rackToDelete, setRackToDelete] = useState<Rack | null>(null);
+
+    const handleDeleteClick = (rack: Rack) => {
+        setRackToDelete(rack);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!rackToDelete) return;
+
+        try {
+            await racksApi.delete(rackToDelete.id);
+            window.toast?.success('Rack deleted successfully');
+            await loadData();
+        } catch (err: any) {
+            console.error('Failed to delete rack:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete rack');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setRackToDelete(null);
         }
     };
 
@@ -157,7 +172,7 @@ export default function RackMaster() {
             render: (rack) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('racks.delete') && (
-                        <Button variant="ghost" onClick={() => handleDeleteRack(rack.id)} className="!p-1.5 h-8 w-8 text-red-600">
+                        <Button variant="ghost" onClick={() => handleDeleteClick(rack)} className="!p-1.5 h-8 w-8 text-red-600">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -252,6 +267,15 @@ export default function RackMaster() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Rack"
+                message={`Are you sure you want to delete "${rackToDelete?.rack_name}"? This action cannot be undone.`}
+                confirmText="Delete Rack"
+            />
         </UniversalListPage>
     );
 }

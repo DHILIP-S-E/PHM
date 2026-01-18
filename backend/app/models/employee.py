@@ -34,8 +34,8 @@ class EmployeeBase(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     email: Optional[EmailStr] = None
     phone: str
-    designation: str
-    department: str
+    designation: Optional[str] = "Employee"  # Default designation
+    department: Optional[str] = "General"    # Default department
     employment_type: EmploymentType = EmploymentType.FULL_TIME
     date_of_joining: date
     date_of_birth: Optional[date] = None

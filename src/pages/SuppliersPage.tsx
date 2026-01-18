@@ -8,6 +8,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
 
@@ -122,13 +123,28 @@ export default function SuppliersPage() {
         }
     };
 
-    const handleDelete = async (item: Supplier) => {
-        if (!confirm(`Delete supplier "${item.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+
+    const handleDeleteClick = (supplier: Supplier) => {
+        setSupplierToDelete(supplier);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!supplierToDelete) return;
+
         try {
-            await mastersApi.deleteSupplier(item.id);
+            await mastersApi.deleteSupplier(supplierToDelete.id);
+            window.toast?.success('Supplier deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete');
+            console.error('Failed to delete supplier:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete supplier');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setSupplierToDelete(null);
         }
     };
 
@@ -205,7 +221,7 @@ export default function SuppliersPage() {
                     {hasPermission('suppliers.delete') && (
                         <Button
                             variant="ghost"
-                            onClick={() => handleDelete(item)}
+                            onClick={() => handleDeleteClick(item)}
                             className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50"
                         >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -307,6 +323,15 @@ export default function SuppliersPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Supplier"
+                message={`Are you sure you want to delete "${supplierToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Supplier"
+            />
         </UniversalListPage>
     );
 }

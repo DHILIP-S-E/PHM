@@ -4,6 +4,9 @@ Production-grade pharmacy management API
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import router as api_v1_router
@@ -55,6 +58,37 @@ app.include_router(api_v1_router, prefix="/api/v1")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "version": "1.0.0", "database": "connected"}
+
+
+# --- SPA Fallback Configuration ---
+# Mount static assets from the frontend build directory
+# Assuming main.py is in backend/ and dist/ is in the project root
+dist_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dist")
+
+if os.path.exists(dist_dir):
+    # Mount /assets to serve JS/CSS/Images
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="assets")
+
+    # Mount other static files if necessary (e.g. vite.svg)
+    # Note: For root level files like favicon.ico, we might need specific handlers or just rely on catch-all if they are in dist root.
+
+    # Catch-all route to serve index.html for client-side routing
+    @app.get("/{full_path:path}")
+    async def serve_app(full_path: str):
+        # Allow API routes to pass through (though they should be matched by routers above)
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc"):
+             from fastapi import HTTPException
+             raise HTTPException(status_code=404, detail="Not Found")
+        
+        # Check if file exists in dist (e.g. favicon.ico, manifest.json)
+        file_path = os.path.join(dist_dir, full_path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+
+        # Fallback to index.html
+        return FileResponse(os.path.join(dist_dir, "index.html"))
+else:
+    print(f"WARNING: Frontend build directory not found at {dist_dir}. SPA serving disabled.")
 
 
 if __name__ == "__main__":

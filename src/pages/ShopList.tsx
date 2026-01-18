@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 import { StatusSelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
 interface Shop {
@@ -30,6 +32,7 @@ interface Shop {
 export default function ShopList() {
     const navigate = useNavigate();
     const { user } = useUser();
+    const { isLoading: mastersLoading } = useMasterData();
     const userRole = user?.role || 'user';
     const canDelete = userRole === 'super_admin';
 
@@ -63,15 +66,28 @@ export default function ShopList() {
         }
     };
 
-    const handleDelete = async (shop: Shop) => {
-        if (!confirm(`Are you sure you want to delete "${shop.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [shopToDelete, setShopToDelete] = useState<Shop | null>(null);
+
+    const handleDeleteClick = (shop: Shop) => {
+        setShopToDelete(shop);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!shopToDelete) return;
 
         try {
-            await shopsApi.delete(shop.id);
+            await shopsApi.delete(shopToDelete.id);
+            window.toast?.success('Shop deleted successfully');
             fetchShops();
         } catch (err: any) {
             console.error('Failed to delete shop:', err);
-            alert(err.response?.data?.detail || 'Failed to delete shop');
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete shop');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setShopToDelete(null);
         }
     };
 
@@ -163,7 +179,7 @@ export default function ShopList() {
                     {canDelete && (
                         <Button
                             variant="ghost"
-                            onClick={() => handleDelete(shop)}
+                            onClick={() => handleDeleteClick(shop)}
                             className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50"
                             title="Delete Shop"
                         >
@@ -177,7 +193,7 @@ export default function ShopList() {
     ];
 
     return (
-        <UniversalListPage>
+        <UniversalListPage loading={mastersLoading}>
             <UniversalListPage.Header
                 title="Medical Shops"
                 subtitle={`Manage ${totalItems} retail pharmacy locations`}
@@ -231,6 +247,14 @@ export default function ShopList() {
                         embedded={true}
                     />
                 }
+            />
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Shop"
+                message={`Are you sure you want to delete "${shopToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Shop"
             />
         </UniversalListPage>
     );

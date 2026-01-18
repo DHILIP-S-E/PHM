@@ -1,131 +1,127 @@
 """
-Test DEPLOYED backend server (Coolify)
+Test DEPLOYED backend server
+Usage: python test_deployed.py [OPTIONAL_URL]
 """
 import requests
-import json
+import sys
+import time
 
-# DEPLOYED SERVER URL
-DEPLOYED_URL = "http://backend-pms.sslip.io"
-API_URL = f"{DEPLOYED_URL}/api/v1"
+# Default URL (can be overridden by command line argument)
+DEFAULT_URL = "http://g0wckoc4sswgsg44gowg88c8.3.110.117.164.sslip.io"
 
-def test_deployed_server():
-    """Test if deployed server is accessible"""
+def get_base_url():
+    if len(sys.argv) > 1:
+        return sys.argv[1].rstrip('/')
+    return DEFAULT_URL
+
+BASE_URL = get_base_url()
+API_URL = f"{BASE_URL}/api/v1"
+
+def print_header(text):
     print("\n" + "="*60)
-    print("TESTING DEPLOYED SERVER")
-    print(f"URL: {DEPLOYED_URL}")
+    print(text)
     print("="*60)
+
+def test_health():
+    print_header("1. CHECKING HEALTH ENDPOINT")
+    url = f"{BASE_URL}/health"
+    print(f"Requesting: {url}...")
     
-    # Test 1: Check if server is reachable
-    print("\n1. Checking if server is reachable...")
     try:
-        response = requests.get(f"{DEPLOYED_URL}/docs", timeout=10)
+        response = requests.get(url, timeout=10)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.text}")
+        
         if response.status_code == 200:
-            print(f"   ✅ Server is ONLINE at {DEPLOYED_URL}")
+            data = response.json()
+            if data.get("status") == "healthy":
+                print("✅ Health check PASSED")
+                return True
+            else:
+                print("⚠️  Health check returned 200 but status is not 'healthy'")
         else:
-            print(f"   ⚠️  Server responded with status: {response.status_code}")
-    except requests.exceptions.ConnectionError as e:
-        print(f"   ❌ CONNECTION ERROR!")
-        print(f"   Cannot reach {DEPLOYED_URL}")
-        print(f"\n   Possible reasons:")
-        print(f"   1. Server is not deployed yet in Coolify")
-        print(f"   2. Domain 'backend-pms.sslip.io' is not configured")
-        print(f"   3. Server is not running")
-        print(f"\n   Error details: {str(e)}")
-        return False
-    except requests.exceptions.Timeout:
-        print(f"   ❌ TIMEOUT!")
-        print(f"   Server took too long to respond")
-        return False
+            print("❌ Health check FAILED")
+            
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
+        print(f"❌ Connection Error: {e}")
         return False
     
-    # Test 2: Check API health
-    print("\n2. Checking API health...")
+    return False
+
+def test_docs():
+    print_header("2. CHECKING DOCS (SWAGGER UI)")
+    url = f"{BASE_URL}/docs"
+    print(f"Requesting: {url}...")
+    
     try:
-        response = requests.get(f"{API_URL}/auth/me", timeout=5)
-        # We expect 401 (unauthorized) which means API is working
-        if response.status_code == 401:
-            print("   ✅ API is WORKING (returned 401 as expected)")
-        elif response.status_code == 200:
-            print("   ✅ API is WORKING")
+        response = requests.get(url, timeout=10)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print("✅ Specs/Docs are accessible")
+            return True
         else:
-            print(f"   ⚠️  API responded with status: {response.status_code}")
+            print("❌ Specs/Docs NOT accessible")
     except Exception as e:
-        print(f"   ❌ API Error: {str(e)}")
+        print(f"❌ Connection Error: {e}")
         return False
+        
+    return False
+
+def test_login():
+    print_header("3. CHECKING LOGIN (Database Connection)")
+    url = f"{API_URL}/auth/login"
     
-    # Test 3: Try login
-    print("\n3. Testing login endpoint...")
-    login_data = {
-        "username": "test.shopowner@phm.test",
-        "password": "password123"
+    # Use a test account that should exist
+    payload = {
+        "username": "war@gmail.com",
+        "password": "12345678" 
     }
+    
+    print(f"Requesting: {url}")
+    print(f"User: {payload['username']}")
     
     try:
         response = requests.post(
-            f"{API_URL}/auth/login",
-            data=login_data,
+            url, 
+            data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=10
         )
         
+        print(f"Status Code: {response.status_code}")
+        
         if response.status_code == 200:
-            print("   ✅ Login SUCCESSFUL!")
-            data = response.json()
-            token = data.get("access_token")
-            print(f"   Token: {token[:50]}...")
+            print("✅ Login SUCCESSFUL")
+            token = response.json().get("access_token")
+            print(f"Token received: {token[:20]}...")
             return token
         elif response.status_code == 401:
-            print(f"   ❌ Login FAILED - Wrong credentials")
-            print(f"   Response: {response.text}")
+            print("✅ Server reachable (401 Unauthorized) - Credentials might be wrong, but DB is likely working")
+            print(f"Response: {response.json()}")
+            return None
+        elif response.status_code == 500:
+            print("❌ Server Error (500) - Likely Database Connection Issue")
+            print(f"Response: {response.text}")
+            return None
         else:
-            print(f"   ❌ Login FAILED with status {response.status_code}")
-            print(f"   Response: {response.text}")
-        return None
+            print(f"⚠️  Unexpected Status: {response.status_code}")
+            print(f"Response: {response.text}")
+            return None
             
     except Exception as e:
-        print(f"   ❌ Error: {e}")
+        print(f"❌ Connection Error: {e}")
         return None
 
-def check_dns():
-    """Check if domain resolves"""
-    print("\n" + "="*60)
-    print("DNS CHECK")
-    print("="*60)
-    
-    import socket
-    
-    domain = "backend-pms.sslip.io"
-    print(f"\nChecking DNS for: {domain}")
-    
-    try:
-        ip = socket.gethostbyname(domain)
-        print(f"   ✅ Domain resolves to: {ip}")
-        return True
-    except socket.gaierror:
-        print(f"   ❌ Domain does NOT resolve!")
-        print(f"\n   This means:")
-        print(f"   - The domain is not configured in Coolify")
-        print(f"   - OR the server is not deployed yet")
-        return False
-
 if __name__ == "__main__":
-    print("\n🌐 TESTING DEPLOYED BACKEND SERVER")
+    print(f"Targeting Server: {BASE_URL}")
     
-    # First check DNS
-    dns_ok = check_dns()
-    
-    if dns_ok:
-        # Then test server
-        token = test_deployed_server()
+    if test_health():
+        test_docs()
+        test_login()
     else:
-        print("\n⚠️  Cannot test server - domain doesn't resolve")
-        print("\nTO FIX:")
-        print("1. Deploy your backend in Coolify")
-        print("2. Configure domain: backend-pms.sslip.io")
-        print("3. Make sure the service is running")
-    
-    print("\n" + "="*60)
-    print("TEST COMPLETE!")
-    print("="*60 + "\n")
+        print("\n❌ CRITICAL: Unknown host or server is down.")
+        print("Tips:")
+        print("1. Check if the URL is correct")
+        print("2. If using Coolify/Docker, check logs")
+        print("3. Ensure firewall/security groups allow port 80/443")

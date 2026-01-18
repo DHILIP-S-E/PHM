@@ -103,19 +103,13 @@ export default function MedicineEdit() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="spinner"></div>
-            </div>
-        );
-    }
+
 
     return (
         <PageLayout
             title="Edit Medicine"
             description={`Update information for ${formData.name}`}
-
+            loading={loading || mastersLoading}
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>

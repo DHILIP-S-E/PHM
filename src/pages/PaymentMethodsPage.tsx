@@ -8,6 +8,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface PaymentMethod {
     id: string;
@@ -103,13 +104,28 @@ export default function PaymentMethodsPage() {
         }
     };
 
-    const handleDelete = async (item: PaymentMethod) => {
-        if (!confirm(`Delete "${item.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<PaymentMethod | null>(null);
+
+    const handleDeleteClick = (item: PaymentMethod) => {
+        setItemToDelete(item);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
         try {
-            await mastersApi.deletePaymentMethod(item.id);
+            await mastersApi.deletePaymentMethod(itemToDelete.id);
+            window.toast?.success('Payment method deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete');
+            console.error('Failed to delete payment method:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete payment method');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
         }
     };
 
@@ -158,7 +174,7 @@ export default function PaymentMethodsPage() {
                                         </button>
                                     )}
                                     {hasPermission('payment_methods.delete') && (
-                                        <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
+                                        <button onClick={() => handleDeleteClick(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
                                             <span className="material-symbols-outlined text-[18px]">delete</span>
                                         </button>
                                     )}
@@ -200,6 +216,15 @@ export default function PaymentMethodsPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Payment Method"
+                message={`Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Method"
+            />
         </PageLayout>
     );
 }

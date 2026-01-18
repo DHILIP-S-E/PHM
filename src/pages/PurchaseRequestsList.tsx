@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { purchaseRequestsApi, medicinesApi } from '../services/api';
+import { useMasterData } from '../contexts/MasterDataContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { ShopSelect, WarehouseSelect, UrgencySelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
@@ -23,6 +24,7 @@ interface PurchaseRequest {
 
 export default function PurchaseRequestsList() {
     const navigate = useNavigate();
+    const { isLoading: mastersLoading } = useMasterData();
     const [requests, setRequests] = useState<PurchaseRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
@@ -230,7 +232,7 @@ export default function PurchaseRequestsList() {
     ];
 
     return (
-        <UniversalListPage>
+        <UniversalListPage loading={mastersLoading}>
             <UniversalListPage.Header
                 title="Purchase Requests"
                 subtitle="Manage stock requests from shops to warehouses"

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { employeesApi } from '../services/api';
-import { DepartmentSelect, DesignationSelect, ShopSelect, EmploymentTypeSelect, GenderSelect } from '../components/MasterSelect';
+import { ShopSelect, EmploymentTypeSelect, GenderSelect } from '../components/MasterSelect';
 import { useUser } from '../contexts/UserContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
@@ -15,8 +16,7 @@ interface Employee {
     employee_code?: string;
     email?: string;
     phone: string;
-    department: string;
-    designation: string;
+
     employment_type?: string;
     basic_salary: number;
     status: string;
@@ -31,8 +31,7 @@ interface EmployeeForm {
     email: string;
     password: string;
     phone: string;
-    department: string;
-    designation: string;
+
     employment_type: string;
     salary: number;
     shop_id: string;
@@ -53,8 +52,7 @@ const emptyForm: EmployeeForm = {
     email: '',
     password: '',
     phone: '',
-    department: 'operations',
-    designation: '',
+
     employment_type: 'full_time',
     salary: 0,
     shop_id: '',
@@ -71,6 +69,7 @@ const emptyForm: EmployeeForm = {
 
 export default function EmployeesList() {
     const { user } = useUser();
+    const { isLoading: mastersLoading } = useMasterData();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -324,7 +323,7 @@ export default function EmployeesList() {
     ];
 
     return (
-        <UniversalListPage>
+        <UniversalListPage loading={mastersLoading}>
             <UniversalListPage.Header
                 title="Employees"
                 subtitle="Manage staff, payroll, and assignments"
@@ -399,15 +398,7 @@ export default function EmployeesList() {
                             onChange: (val) => { setSearch(val); setCurrentPage(1); },
                             placeholder: "Search employees..."
                         }}
-                        actions={
-                            <div className="flex items-center gap-2">
-                                <DepartmentSelect
-                                    value={deptFilter}
-                                    onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
-                                    className="!w-40 !py-1.5 !text-sm !rounded-lg" // specific override for toolstrip
-                                />
-                            </div>
-                        }
+                        actions={null}
                         embedded={true}
                     />
                 }
@@ -504,25 +495,7 @@ export default function EmployeesList() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Department</label>
-                                        <DepartmentSelect
-                                            value={formData.department}
-                                            onChange={(val) => setFormData({ ...formData, department: val })}
-                                            required
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Designation</label>
-                                        <DesignationSelect
-                                            value={formData.designation}
-                                            onChange={(val) => setFormData({ ...formData, designation: val })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
-                                        />
-                                    </div>
-                                </div>
+
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>

@@ -33,7 +33,7 @@ export default function UsersList() {
     const [showPassword, setShowPassword] = useState(false);
 
     // Filter states
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
     const [roleFilter, setRoleFilter] = useState<string>('all');
 
     const [formData, setFormData] = useState({
@@ -140,16 +140,28 @@ export default function UsersList() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+    const handleDeleteClick = (user: User) => {
+        setUserToDelete(user);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
+
         try {
-            await usersApi.delete(id);
+            await usersApi.delete(userToDelete.id);
             window.toast?.success('User deleted successfully');
             fetchUsers();
         } catch (error: any) {
             console.error('Failed to delete user:', error);
             const errorMessage = error.response?.data?.detail || 'Failed to delete user';
             window.toast?.error(errorMessage);
+        } finally {
+            setDeleteModalOpen(false);
+            setUserToDelete(null);
         }
     };
 
@@ -266,7 +278,7 @@ export default function UsersList() {
                     {(userRole === 'super_admin') && (
                         <Button
                             variant="secondary"
-                            onClick={() => handleDelete(user.id)}
+                            onClick={() => handleDeleteClick(user)}
                             className="!p-1.5 h-8 w-8 justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
                             title="Delete User"
                         >
@@ -481,6 +493,37 @@ export default function UsersList() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteModalOpen && userToDelete && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700 animate-scaleIn">
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center mb-4">
+                                <span className="material-symbols-outlined text-[24px]">warning</span>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete User?</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                Are you sure you want to delete <strong>{userToDelete.full_name}</strong>? This action cannot be undone.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteModalOpen(false)}
+                                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium transition-colors shadow-lg shadow-red-500/20"
+                            >
+                                Delete User
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { customersApi } from '../services/api';
+import { useMasterData } from '../contexts/MasterDataContext';
 import { CustomerTypeSelect, GenderSelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
@@ -23,6 +24,7 @@ interface Customer {
 }
 
 export default function CustomersList() {
+    const { isLoading: mastersLoading } = useMasterData();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -170,7 +172,7 @@ export default function CustomersList() {
 
 
     return (
-        <UniversalListPage>
+        <UniversalListPage loading={mastersLoading}>
             <UniversalListPage.Header
                 title="Customers"
                 subtitle="Manage customer profiles and history"

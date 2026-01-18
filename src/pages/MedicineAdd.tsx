@@ -78,7 +78,7 @@ export default function MedicineAdd() {
         <PageLayout
             title="Add New Medicine"
             description="Create a new medicine in your catalog"
-
+            loading={mastersLoading}
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>

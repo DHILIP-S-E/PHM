@@ -10,6 +10,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface GSTSlab {
     id: string;
@@ -23,7 +24,7 @@ export default function GSTSlabsPage() {
     const { user } = useUser();
     const { hasPermission } = usePermissions();
     const navigate = useNavigate();
-    const { refresh } = useMasterData();
+    const { refresh, isLoading: mastersLoading } = useMasterData();
 
     const [slabs, setSlabs] = useState<GSTSlab[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,14 +93,29 @@ export default function GSTSlabsPage() {
         }
     };
 
-    const handleDelete = async (slab: GSTSlab) => {
-        if (!confirm(`Delete GST slab "${slab.rate}%"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [slabToDelete, setSlabToDelete] = useState<GSTSlab | null>(null);
+
+    const handleDeleteClick = (slab: GSTSlab) => {
+        setSlabToDelete(slab);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!slabToDelete) return;
+
         try {
-            await mastersApi.deleteGSTSlab(slab.id);
+            await mastersApi.deleteGSTSlab(slabToDelete.id);
+            window.toast?.success('GST Slab deleted successfully');
             loadData();
             refresh();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete. This slab may be in use.');
+            console.error('Failed to delete GST Slab:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete GST Slab');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setSlabToDelete(null);
         }
     };
 
@@ -117,6 +133,7 @@ export default function GSTSlabsPage() {
                     </Button>
                 )
             }
+            loading={mastersLoading}
         >
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Info Card */}
@@ -218,7 +235,7 @@ export default function GSTSlabsPage() {
                                                     </Button>
                                                 )}
                                                 {hasPermission('gst.delete') && (
-                                                    <Button variant="secondary" onClick={() => handleDelete(slab)} className="!p-1.5 text-red-600">
+                                                    <Button variant="secondary" onClick={() => handleDeleteClick(slab)} className="!p-1.5 text-red-600">
                                                         <span className="material-symbols-outlined text-[18px]">delete</span>
                                                     </Button>
                                                 )}
@@ -290,6 +307,15 @@ export default function GSTSlabsPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete GST Slab"
+                message={`Are you sure you want to delete GST Slab "${slabToDelete?.rate}%"? This action cannot be undone.`}
+                confirmText="Delete Slab"
+            />
         </PageLayout>
     );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { inventoryApi } from '../services/api'; // Remove warehousesApi, shopsApi
 import { useOperationalContext } from '../contexts/OperationalContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 import { WarehouseSelect, ShopSelect } from '../components/MasterSelect';
 
 interface StockItem {
@@ -22,6 +23,7 @@ type TabType = 'warehouse' | 'shop' | 'expiry' | 'dead-stock';
 export default function InventoryOversight() {
     const location = useLocation();
     const { activeEntity, scope } = useOperationalContext();
+    const { isLoading: mastersLoading } = useMasterData();
 
     // Determine initial tab from URL
     const getTabFromPath = (): TabType => {
@@ -100,6 +102,17 @@ export default function InventoryOversight() {
         expiringSoon: stockData.filter(item => item.days_to_expiry > 0 && item.days_to_expiry <= 30).length,
         expired: stockData.filter(item => item.days_to_expiry <= 0).length,
     };
+
+    if (mastersLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="spinner"></div>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Master Data...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">

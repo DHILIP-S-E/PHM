@@ -10,6 +10,7 @@ import Button from '../components/Button';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 
 interface HSN {
@@ -29,7 +30,7 @@ export default function HSNCodesPage() {
     const { user } = useUser();
     const { hasPermission } = usePermissions();
     const navigate = useNavigate();
-    const { getMaster } = useMasterData();
+    const { getMaster, isLoading: mastersLoading } = useMasterData();
     const gstSlabs = getMaster('gst_slabs');
 
     const [hsnCodes, setHsnCodes] = useState<HSN[]>([]);
@@ -125,13 +126,28 @@ export default function HSNCodesPage() {
         }
     };
 
-    const handleDelete = async (hsn: HSN) => {
-        if (!confirm(`Delete HSN "${hsn.hsn_code}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [hsnToDelete, setHsnToDelete] = useState<HSN | null>(null);
+
+    const handleDeleteClick = (hsn: HSN) => {
+        setHsnToDelete(hsn);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!hsnToDelete) return;
+
         try {
-            await mastersApi.deleteHSN(hsn.id);
+            await mastersApi.deleteHSN(hsnToDelete.id);
+            window.toast?.success('HSN Code deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete');
+            console.error('Failed to delete HSN Code:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete HSN Code');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setHsnToDelete(null);
         }
     };
 
@@ -193,7 +209,7 @@ export default function HSNCodesPage() {
                         </Button>
                     )}
                     {hasPermission('hsn.delete') && (
-                        <Button variant="ghost" onClick={() => handleDelete(hsn)} className="!p-1.5 h-8 w-8 text-red-600">
+                        <Button variant="ghost" onClick={() => handleDeleteClick(hsn)} className="!p-1.5 h-8 w-8 text-red-600">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -205,7 +221,7 @@ export default function HSNCodesPage() {
     const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     return (
-        <UniversalListPage>
+        <UniversalListPage loading={mastersLoading}>
             <UniversalListPage.Header
                 title="HSN Codes"
                 subtitle="Manage HSN codes with GST rates."
@@ -316,6 +332,15 @@ export default function HSNCodesPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete HSN Code"
+                message={`Are you sure you want to delete HSN Code "${hsnToDelete?.hsn_code}"? This action cannot be undone.`}
+                confirmText="Delete HSN Code"
+            />
         </UniversalListPage>
     );
 }

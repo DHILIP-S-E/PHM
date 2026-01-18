@@ -9,6 +9,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
 interface Brand {
@@ -93,13 +94,28 @@ export default function BrandsPage() {
         }
     };
 
-    const handleDelete = async (item: Brand) => {
-        if (!confirm(`Delete "${item.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<Brand | null>(null);
+
+    const handleDeleteClick = (item: Brand) => {
+        setItemToDelete(item);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
         try {
-            await mastersApi.deleteBrand(item.id);
+            await mastersApi.deleteBrand(itemToDelete.id);
+            window.toast?.success('Brand deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete');
+            console.error('Failed to delete brand:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete brand');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
         }
     };
 
@@ -156,7 +172,7 @@ export default function BrandsPage() {
                         </Button>
                     )}
                     {hasPermission('brands.delete') && (
-                        <Button variant="ghost" onClick={() => handleDelete(item)} className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50">
+                        <Button variant="ghost" onClick={() => handleDeleteClick(item)} className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -243,6 +259,15 @@ export default function BrandsPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Brand"
+                message={`Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Brand"
+            />
         </UniversalListPage>
     );
 }

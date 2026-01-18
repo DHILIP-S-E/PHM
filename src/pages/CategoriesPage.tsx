@@ -8,6 +8,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 import { type Column } from '../components/Table';
 
@@ -108,13 +109,28 @@ export default function CategoriesPage() {
         }
     };
 
-    const handleDelete = async (category: Category) => {
-        if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+
+    const handleDeleteClick = (category: Category) => {
+        setCategoryToDelete(category);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!categoryToDelete) return;
+
         try {
-            await mastersApi.deleteCategory(category.id);
+            await mastersApi.deleteCategory(categoryToDelete.id);
+            window.toast?.success('Category deleted successfully');
             loadData();
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to delete category');
+            console.error('Failed to delete category:', err);
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete category');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setCategoryToDelete(null);
         }
     };
 
@@ -184,7 +200,7 @@ export default function CategoriesPage() {
                         </Button>
                     )}
                     {hasPermission('categories.delete') && (
-                        <Button variant="ghost" onClick={() => handleDelete(category)} className="!p-1.5 h-8 w-8 text-red-600">
+                        <Button variant="ghost" onClick={() => handleDeleteClick(category)} className="!p-1.5 h-8 w-8 text-red-600">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -291,6 +307,15 @@ export default function CategoriesPage() {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Category"
+                message={`Are you sure you want to delete "${categoryToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Category"
+            />
         </UniversalListPage>
     );
 }

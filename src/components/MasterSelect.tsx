@@ -395,38 +395,59 @@ export function CustomerTypeSelect({ value, onChange, required, disabled, classN
 }
 
 /**
- * GenderSelect - For gender selection
+ * GenderSelect - For gender selection (hardcoded values)
  */
 export function GenderSelect({ value, onChange, required, disabled, className, placeholder }: CategorySelectProps) {
+    const genders = [
+        { value: 'male', label: 'Male' },
+        { value: 'female', label: 'Female' },
+        { value: 'other', label: 'Other' }
+    ];
+
     return (
-        <MasterSelect
-            masterKey="genders"
+        <select
             value={value}
-            onChange={onChange}
-            placeholder={placeholder || "Select Gender"}
-            valueField="code"
+            onChange={(e) => onChange(e.target.value)}
             required={required}
             disabled={disabled}
-            className={className}
-        />
+            className={className || 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}
+        >
+            <option value="">{placeholder || 'Select Gender'}</option>
+            {genders.map((gender) => (
+                <option key={gender.value} value={gender.value}>
+                    {gender.label}
+                </option>
+            ))}
+        </select>
     );
 }
 
 /**
- * EmploymentTypeSelect - For employment types
+ * EmploymentTypeSelect - For employment types (hardcoded values)
  */
 export function EmploymentTypeSelect({ value, onChange, required, disabled, className, placeholder }: CategorySelectProps) {
+    const employmentTypes = [
+        { value: 'full_time', label: 'Full Time' },
+        { value: 'part_time', label: 'Part Time' },
+        { value: 'contract', label: 'Contract' },
+        { value: 'intern', label: 'Intern' }
+    ];
+
     return (
-        <MasterSelect
-            masterKey="employment_types"
+        <select
             value={value}
-            onChange={onChange}
-            placeholder={placeholder || "Select Employment Type"}
-            valueField="code"
+            onChange={(e) => onChange(e.target.value)}
             required={required}
             disabled={disabled}
-            className={className}
-        />
+            className={className || 'w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}
+        >
+            <option value="">{placeholder || 'Select Employment Type'}</option>
+            {employmentTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                    {type.label}
+                </option>
+            ))}
+        </select>
     );
 }
 
@@ -619,4 +640,5 @@ export function ManufacturerSelect({ value, onChange, required, disabled, classN
 }
 
 export default MasterSelect;
+
 

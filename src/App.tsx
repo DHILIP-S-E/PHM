@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { UserProvider } from './contexts/UserContext';
+import { UserProvider, useUser } from './contexts/UserContext';
 import { PermissionProvider } from './contexts/PermissionContext';
 import { MasterDataProvider } from './contexts/MasterDataContext';
 import { OperationalProvider } from './contexts/OperationalContext';
@@ -60,8 +60,25 @@ import ManufacturersPage from './pages/ManufacturersPage';
 
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useUser();
   const token = localStorage.getItem('access_token');
-  return token ? <>{children}</> : <Navigate to="/login" replace />;
+
+  // If loading, show spinner
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center gap-3">
+          <div className="spinner"></div>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have a user (loaded successfully) OR a token (optimistic check while loading was true),
+  // but here loading is false, so user should be set if token was valid.
+  // Checking user is safer than checking token after loading is finished.
+  return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 // Role-based home page: 

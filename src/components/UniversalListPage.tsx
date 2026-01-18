@@ -49,9 +49,21 @@ function KPICards({ children }: KPICardsProps) {
 interface UniversalListPageProps {
     children: React.ReactNode;
     className?: string;
+    loading?: boolean;
 }
 
-function UniversalListPageRoot({ children, className = '' }: UniversalListPageProps) {
+function UniversalListPageRoot({ children, className = '', loading = false }: UniversalListPageProps) {
+    if (loading) {
+        return (
+            <div className="flex-1 flex items-center justify-center min-h-[400px] h-full">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="spinner"></div>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Master Data...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={`space-y-6 max-w-[1600px] mx-auto ${className}`}>
             {children}

@@ -651,7 +651,7 @@ def create_employee(
         employee_data.email = f"{employee_code.lower()}@phm.internal"
         print(f"DEBUG: Auto-generated email: {employee_data.email}")
     
-    # Auto-create User account if email provided
+    # Auto-create User account if email provided (MANDATORY)
     user_id = None
     temp_password = None
     
@@ -665,77 +665,83 @@ def create_employee(
             
         existing_user = db.query(User).filter(or_(*filters)).first()
         
-        if not existing_user:
-            # Use provided password or generate temporary one
-            temp_password = employee_data.password or f"Emp@{employee_code}"
-            
-            # Determine role based on designation
-            # Determine role based on validation rules
-            designation_lower = employee_data.designation.lower() if employee_data.designation else ""
-            
-            # 1. Base rule: Context determines default role
-            if employee_data.warehouse_id:
-                role_name = "warehouse_employee"
-            elif employee_data.shop_id:
-                role_name = "pharmacy_employee"
-            else:
-                role_name = "employee"
-
-            # 2. Designation overrides for specific roles
-            if "manager" in designation_lower or "admin" in designation_lower:
-                role_name = "warehouse_admin" if employee_data.warehouse_id else "pharmacy_admin"
-            elif "pharmacist" in designation_lower:
-                role_name = "pharmacist"
-            elif "cashier" in designation_lower:
-                role_name = "cashier"
-            
-            # Get role from database or create if missing (for employees)
-            role = db.query(Role).filter(Role.name == role_name).first()
-            if not role and role_name in ["employee", "warehouse_employee", "pharmacy_employee"]:
-                # Auto-create missing employee roles
-                desc_map = {
-                    "employee": "Standard Employee Role",
-                    "warehouse_employee": "Warehouse Staff Role",
-                    "pharmacy_employee": "Pharmacy Staff Role"
-                }
-                role = Role(
-                    name=role_name, 
-                    description=desc_map.get(role_name, "Employee Role"), 
-                    is_system=True, 
-                    is_creatable=True,
-                    entity_type="warehouse" if "warehouse" in role_name else "shop" if "pharmacy" in role_name else None
-                )
-                db.add(role)
-                db.flush()
-
-            # Determine Legacy Role Enum
-            try:
-                legacy_role = RoleType(role_name)
-            except ValueError:
-                # Fallback if somehow defined in string but not enum
-                legacy_role = RoleType.EMPLOYEE
-            
-            print(f"DEBUG: Role determined: {role_name}")
-            
-            # Create User account
-            new_user = User(
-                email=employee_data.email,
-                password_hash=get_password_hash(temp_password),
-                full_name=employee_data.name,
-                phone=employee_data.phone,
-                role=legacy_role,
-                role_id=role.id if role else None,
-                assigned_warehouse_id=employee_data.warehouse_id,
-                assigned_shop_id=employee_data.shop_id,
-                is_active=True
+        if existing_user:
+            # Reject duplicate - don't allow creating employee with existing user email
+            raise HTTPException(
+                status_code=400, 
+                detail=f"A user with email '{employee_data.email}' or phone '{employee_data.phone}' already exists. Please use a different email/phone."
             )
-            
-            db.add(new_user)
-            db.flush()  # Get user_id without committing
-            user_id = new_user.id
-            print(f"DEBUG: User created with ID: {user_id} and Role: {legacy_role}")
+        
+        # Use provided password or generate temporary one
+        temp_password = employee_data.password or f"Emp@{employee_code}"
+        
+        # Determine role based on designation
+        # Determine role based on validation rules
+        designation_lower = employee_data.designation.lower() if employee_data.designation else ""
+        
+        # 1. Base rule: Context determines default role
+        if employee_data.warehouse_id:
+            role_name = "warehouse_employee"
+        elif employee_data.shop_id:
+            role_name = "pharmacy_employee"
         else:
-            user_id = existing_user.id
+            role_name = "employee"
+
+        # 2. Designation overrides for specific roles (only upgrades/specialists)
+        if "manager" in designation_lower or "admin" in designation_lower:
+            role_name = "warehouse_admin" if employee_data.warehouse_id else "pharmacy_admin"
+        elif "pharmacist" in designation_lower and employee_data.shop_id:
+            role_name = "pharmacist"
+        elif "cashier" in designation_lower and employee_data.shop_id:
+            role_name = "cashier"
+        
+        # Get role from database or create if missing (for employees)
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if not role and role_name in ["employee", "warehouse_employee", "pharmacy_employee"]:
+            # Auto-create missing employee roles
+            desc_map = {
+                "employee": "Standard Employee Role",
+                "warehouse_employee": "Warehouse Staff Role",
+                "pharmacy_employee": "Pharmacy Staff Role"
+            }
+            role = Role(
+                name=role_name, 
+                description=desc_map.get(role_name, "Employee Role"), 
+                is_system=True, 
+                is_creatable=True,
+                entity_type="warehouse" if "warehouse" in role_name else "shop" if "pharmacy" in role_name else None
+            )
+            db.add(role)
+            db.flush()
+
+        # Determine Legacy Role Enum - lookup by value, not by name
+        try:
+            legacy_role = next((r for r in RoleType if r.value == role_name), None)
+            if not legacy_role:
+                legacy_role = RoleType.EMPLOYEE
+        except (ValueError, StopIteration):
+            # Fallback if somehow defined in string but not enum
+            legacy_role = RoleType.EMPLOYEE
+        
+        print(f"DEBUG: Role determined: {role_name}")
+        
+        # Create User account
+        new_user = User(
+            email=employee_data.email,
+            password_hash=get_password_hash(temp_password),
+            full_name=employee_data.name,
+            phone=employee_data.phone,
+            role=legacy_role.value,
+            role_id=role.id if role else None,
+            assigned_warehouse_id=employee_data.warehouse_id,
+            assigned_shop_id=employee_data.shop_id,
+            is_active=True
+        )
+        
+        db.add(new_user)
+        db.flush()  # Get user_id without committing
+        user_id = new_user.id
+        print(f"DEBUG: User created with ID: {user_id} and Role: {legacy_role}")
     
     # Create Employee record
     employee = Employee(

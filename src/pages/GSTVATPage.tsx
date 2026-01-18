@@ -25,7 +25,7 @@ export default function GSTVATPage() {
     const { user } = useUser();
     const { hasPermission } = usePermissions();
     const navigate = useNavigate();
-    const { getMaster } = useMasterData();
+    const { getMaster, isLoading: mastersLoading } = useMasterData();
     const gstSlabs = getMaster('gst_slabs');
 
     const [settings, setSettings] = useState<TaxSettings>({
@@ -91,6 +91,7 @@ export default function GSTVATPage() {
                     </div>
                 ) : undefined
             }
+            loading={loading || mastersLoading}
         >
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* GST Settings */}

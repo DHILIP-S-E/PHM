@@ -7,6 +7,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
 interface Warehouse {
@@ -92,16 +93,29 @@ export default function WarehouseList() {
         }
     };
 
-    const handleDelete = async (warehouse: Warehouse) => {
-        if (!confirm(`Are you sure you want to delete "${warehouse.name}"?`)) return;
+    // Delete Confirmation
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [warehouseToDelete, setWarehouseToDelete] = useState<Warehouse | null>(null);
+
+    const handleDeleteClick = (warehouse: Warehouse) => {
+        setWarehouseToDelete(warehouse);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!warehouseToDelete) return;
 
         try {
-            await warehousesApi.delete(warehouse.id);
+            await warehousesApi.delete(warehouseToDelete.id);
+            window.toast?.success('Warehouse deleted successfully');
             fetchWarehouses();
             fetchStats();
         } catch (err: any) {
             console.error('Failed to delete warehouse:', err);
-            alert(err.response?.data?.detail || 'Failed to delete warehouse');
+            window.toast?.error(err.response?.data?.detail || 'Failed to delete warehouse');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setWarehouseToDelete(null);
         }
     };
 
@@ -177,7 +191,7 @@ export default function WarehouseList() {
                     {canDelete && (
                         <Button
                             variant="ghost"
-                            onClick={() => handleDelete(warehouse)}
+                            onClick={() => handleDeleteClick(warehouse)}
                             className="!p-1.5 h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                             title="Delete Warehouse"
                         >
@@ -346,6 +360,15 @@ export default function WarehouseList() {
                     </div>
                 )}
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Warehouse"
+                message={`Are you sure you want to delete "${warehouseToDelete?.name}"? This action cannot be undone.`}
+                confirmText="Delete Warehouse"
+            />
         </UniversalListPage>
     );
 }

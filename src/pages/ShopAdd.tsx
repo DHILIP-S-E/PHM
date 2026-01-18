@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
+import { useMasterData } from '../contexts/MasterDataContext';
 import { WarehouseSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -9,6 +10,7 @@ import Button from '../components/Button';
 
 export default function ShopAdd() {
     const navigate = useNavigate();
+    const { isLoading: isMasterLoading } = useMasterData();
     const [formData, setFormData] = useState({
         name: '',
         code: '',
@@ -57,6 +59,7 @@ export default function ShopAdd() {
         <PageLayout
             title="Add New Medical Shop"
             description="Create a new retail pharmacy location"
+            loading={isMasterLoading}
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>
