@@ -41,8 +41,6 @@ interface EmployeeForm {
     address: string;
     emergency_contact: string;
     gender: string;
-    department: string;
-    designation: string;
     // Salary components
     hra_percent: number;
     allowances_percent: number;
@@ -64,8 +62,6 @@ const emptyForm: EmployeeForm = {
     address: '',
     emergency_contact: '',
     gender: '',
-    department: '',
-    designation: '',
     hra_percent: 40.0,
     allowances_percent: 20.0,
     pf_percent: 12.0,
@@ -124,10 +120,7 @@ export default function EmployeesList() {
 
     const openCreateModal = () => {
         setEditingEmployee(null);
-        setFormData({
-            ...emptyForm,
-            department: isWarehouseAdmin ? 'operations' : 'pharmacy',
-        });
+        setFormData(emptyForm);
         setError('');
         setShowModal(true);
     };
@@ -141,8 +134,6 @@ export default function EmployeesList() {
                 name: data.name || '',
                 email: data.email || '',
                 phone: data.phone || '',
-                department: data.department || (isWarehouseAdmin ? 'operations' : 'pharmacy'),
-                designation: data.designation || '',
                 employment_type: data.employment_type || 'full_time',
                 salary: data.basic_salary || 0,
                 shop_id: data.shop_id || '',
@@ -169,8 +160,8 @@ export default function EmployeesList() {
         e.preventDefault();
         setError('');
 
-        if (!formData.name || !formData.phone || !formData.department) {
-            setError('Please fill in all required fields (Name, Phone, Department)');
+        if (!formData.name || !formData.phone) {
+            setError('Please fill in all required fields (Name, Phone)');
             return;
         }
 
@@ -184,8 +175,6 @@ export default function EmployeesList() {
             const payload: any = {
                 name: formData.name,
                 phone: formData.phone,
-                department: formData.department,
-                designation: formData.designation || undefined,
                 employment_type: formData.employment_type,
                 date_of_joining: formData.date_of_joining,
                 basic_salary: Number(formData.salary) || undefined,
